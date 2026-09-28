@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Black Circuit — настольная игра</title>
@@ -242,8 +245,8 @@ button{border:0;cursor:pointer}
 <div id="modalOverlay" class="overlay hidden"><div id="modalDialog" class="dialog"><div id="modalTitle" class="dialog-head"></div><div id="modalBody" class="dialog-body"></div><div id="modalActions" class="dialog-actions"></div></div></div>
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
-    <div class="setup-title">BLACK CIRCUIT</div>
-    <div class="setup-sub">Локальная партия или онлайн-комната по коду. Поиск игроков теперь идёт через распределённую сеть, а сама игра синхронизируется напрямую между браузерами. Хост должен держать вкладку открытой.</div>
+    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v12 ONLINE</span></div>
+    <div class="setup-sub">Версия v12. Локальная партия или онлайн-комната по коду. Поиск игроков идёт через распределённую сеть Nostr/Trystero; хост должен держать вкладку открытой.</div>
 
     <div class="mode-tabs">
       <button id="localModeBtn" class="mode-tab active">Локальная игра</button>
@@ -261,7 +264,7 @@ button{border:0;cursor:pointer}
     </div>
 
     <div id="onlineSetup" class="hidden">
-      <div class="online-box">
+      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v12-NOSTR</div>
 <div style="padding:10px 12px;margin-bottom:10px;border:1px solid #33405a;border-radius:12px;background:#101722;color:#cbd5e1;font-size:13px;line-height:1.45"><b>Важно:</b> у обоих игроков должна быть версия v11. Только один человек нажимает «Создать комнату». Все остальные нажимают «Войти в комнату» и вводят код хоста.</div>
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
@@ -2157,7 +2160,7 @@ async function joinRoom(){
       $('#showJoinBtn').disabled=false;
       $('#leaveRoomBtn').classList.add('hidden');
       setOnlineStatus(
-        'Хост с таким кодом не обнаружен за 25 секунд. Проверьте код и убедитесь, что у хоста открыта эта же версия v11. Затем попробуйте ещё раз.',
+        'v12: хост с таким кодом не обнаружен за 25 секунд. Проверьте код и убедитесь, что у хоста открыта эта же версия v12. Затем попробуйте ещё раз.',
         'err'
       );
     },25000);
