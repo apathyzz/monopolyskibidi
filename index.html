@@ -1,12 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Black Circuit — настольная игра</title>
+<title>Black Circuit — настольная игра 13</title>
 <style>
 :root{
   --bg:#07080c;--panel:#101218;--panel2:#151823;--line:#2a2e3a;--text:#f3f5fb;--muted:#8e96aa;
@@ -245,8 +242,8 @@ button{border:0;cursor:pointer}
 <div id="modalOverlay" class="overlay hidden"><div id="modalDialog" class="dialog"><div id="modalTitle" class="dialog-head"></div><div id="modalBody" class="dialog-body"></div><div id="modalActions" class="dialog-actions"></div></div></div>
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
-    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v12 ONLINE</span></div>
-    <div class="setup-sub">Версия v12. Локальная партия или онлайн-комната по коду. Поиск игроков идёт через распределённую сеть Nostr/Trystero; хост должен держать вкладку открытой.</div>
+    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v13 TURN</span></div>
+    <div class="setup-sub">Версия v13. Поиск комнаты идёт через Nostr/Trystero, а для сложных сетей добавлен настоящий TURN-ретранслятор. Хост должен держать вкладку открытой.</div>
 
     <div class="mode-tabs">
       <button id="localModeBtn" class="mode-tab active">Локальная игра</button>
@@ -264,8 +261,8 @@ button{border:0;cursor:pointer}
     </div>
 
     <div id="onlineSetup" class="hidden">
-      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v12-NOSTR</div>
-<div style="padding:10px 12px;margin-bottom:10px;border:1px solid #33405a;border-radius:12px;background:#101722;color:#cbd5e1;font-size:13px;line-height:1.45"><b>Важно:</b> у обоих игроков должна быть версия v11. Только один человек нажимает «Создать комнату». Все остальные нажимают «Войти в комнату» и вводят код хоста.</div>
+      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v13-TURN</div>
+<div style="padding:10px 12px;margin-bottom:10px;border:1px solid #33405a;border-radius:12px;background:#101722;color:#cbd5e1;font-size:13px;line-height:1.45"><b>Важно:</b> у обоих игроков должна быть версия v13. Только один человек нажимает «Создать комнату». Все остальные нажимают «Войти в комнату» и вводят код хоста.</div>
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
           <select id="onlineIcon" class="field"></select>
@@ -2032,10 +2029,26 @@ async function openNetworkRoom(code,mode){
   netSelfId=mod.selfId;
 
   const config={
-    appId:'black-circuit-monopolyskibidi-v11',
+    appId:'black-circuit-monopolyskibidi-v13',
     password:code,
     relayConfig:{redundancy:5},
-    trickleIce:true
+    trickleIce:true,
+
+    // TURN нужен, когда два браузера нашли друг друга через Nostr,
+    // но NAT/провайдер не позволяет установить прямое WebRTC-соединение.
+    // Trystero автоматически оставляет свои STUN-серверы и использует
+    // этот TURN только как резервный маршрут.
+    turnConfig:[
+      {
+        urls:[
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp'
+        ],
+        username:'openrelayproject',
+        credential:'openrelayproject'
+      }
+    ]
   };
 
   netRoom=mod.joinRoom(
@@ -2048,7 +2061,7 @@ async function openNetworkRoom(code,mode){
         console.warn('BLACK CIRCUIT join error',details);
         if(networkMode==='guest'){
           setOnlineStatus(
-            `Комната найдена, но прямое соединение с ${peerId?'игроком':'хостом'} не установилось: ${String(err)}. Попробуйте ещё раз или другую сеть.`,
+            `Комната найдена, но WebRTC не установился даже через TURN: ${String(err)}. Убедитесь, что у ОБОИХ игроков открыта v13 TURN. Если ошибка повторяется, попробуйте мобильный интернет на одном из устройств.`,
             'err'
           );
         }
@@ -2160,7 +2173,7 @@ async function joinRoom(){
       $('#showJoinBtn').disabled=false;
       $('#leaveRoomBtn').classList.add('hidden');
       setOnlineStatus(
-        'v12: хост с таким кодом не обнаружен за 25 секунд. Проверьте код и убедитесь, что у хоста открыта эта же версия v12. Затем попробуйте ещё раз.',
+        'v13: хост с таким кодом не обнаружен за 25 секунд. Проверьте код и убедитесь, что у хоста открыта эта же версия v13.',
         'err'
       );
     },25000);
@@ -2340,7 +2353,7 @@ async function showRules(){
     <p><b>Красные поля:</b> это цеха, заводы и промышленные объекты. Их нельзя улучшать. Каждый купленный одним игроком красный объект добавляет <b>+${money(ECON.industrialBonusPerOwned)}</b> к аренде каждой его красной клетки.</p>
     <p><b>Торговля:</b> перед броском кубиков текущий игрок может предложить любому активному сопернику деньги, территории или комбинированный обмен. Бот оценивает предложение автоматически, человек принимает или отклоняет его вручную.</p>
     <p><b>Переименование:</b> после покупки владелец может один раз за всю партию переименовать клетку. Повторное переименование запрещено, как и название, которое уже используется другой клеткой.</p>
-    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v11 поиск игроков идёт через распределённые Nostr-реле, после чего игровые данные передаются напрямую между браузерами. Вкладка хоста должна оставаться открытой.</p>
+    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v13 поиск игроков идёт через распределённые Nostr-реле; если прямое соединение блокируется NAT, используется TURN-ретранслятор. Вкладка хоста должна оставаться открытой.</p>
     <p><b>Дубли:</b> первый и второй подряд дают дополнительный бросок. Третий подряд немедленно отправляет в тюрьму.</p>
     <p><b>Тюрьма:</b> игрок имеет две попытки выбить дубль. После первой неудачи остаётся в тюрьме. После второй неудачи обязан заплатить ${money(ECON.bail)}, затем выходит и движется по результату второй попытки.</p>
     <p><b>2×:</b> временно удваивает доход выбранной вашей территории до первого попадания соперника.</p>
