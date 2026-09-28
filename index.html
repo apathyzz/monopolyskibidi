@@ -243,7 +243,7 @@ button{border:0;cursor:pointer}
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
     <div class="setup-title">BLACK CIRCUIT</div>
-    <div class="setup-sub">Локальная партия или онлайн-комната по коду. Онлайн использует WebRTC: хост должен держать вкладку открытой, а у всех игроков должен быть интернет.</div>
+    <div class="setup-sub">Локальная партия или онлайн-комната по коду. Поиск игроков теперь идёт через распределённую сеть, а сама игра синхронизируется напрямую между браузерами. Хост должен держать вкладку открытой.</div>
 
     <div class="mode-tabs">
       <button id="localModeBtn" class="mode-tab active">Локальная игра</button>
@@ -262,7 +262,7 @@ button{border:0;cursor:pointer}
 
     <div id="onlineSetup" class="hidden">
       <div class="online-box">
-<div style="padding:10px 12px;margin-bottom:10px;border:1px solid #33405a;border-radius:12px;background:#101722;color:#cbd5e1;font-size:13px;line-height:1.45"><b>Важно:</b> только один человек нажимает «Создать комнату». Все остальные нажимают «Войти в комнату» и вводят код хоста. Не создавайте две комнаты одновременно.</div>
+<div style="padding:10px 12px;margin-bottom:10px;border:1px solid #33405a;border-radius:12px;background:#101722;color:#cbd5e1;font-size:13px;line-height:1.45"><b>Важно:</b> у обоих игроков должна быть версия v11. Только один человек нажимает «Создать комнату». Все остальные нажимают «Войти в комнату» и вводят код хоста.</div>
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
           <select id="onlineIcon" class="field"></select>
@@ -289,7 +289,6 @@ button{border:0;cursor:pointer}
     </div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <script>
 'use strict';
 
@@ -401,9 +400,10 @@ const map = RAW_MAP.map((r,index) => {
 
 let players = [], current = 0, round = 1, started = false, phase = 'setup', gameEnded = false;
 let networkMode='local'; // local | host | guest
-let peer=null, hostConn=null, roomCode='', localPlayerId=null;
+let roomCode='', localPlayerId=null;
 let lobbyProfiles=[];
-const peerConnections=new Map();
+let netRoom=null, netAction=null, netSelfId='', hostPeerId='';
+let netModulePromise=null, joinRoomTimeout=null;
 const pendingRemoteModals=new Map();
 let remoteModalSeq=1;
 let lastModalFormState={};
@@ -712,24 +712,23 @@ function showLocalModal(title,body,buttons=[],wide=false){
     ov.addEventListener('click',handler);
   });
 }
-function controllerConnectionFor(pid){
-  if(networkMode!=='host'||!peer)return null;
+function controllerPeerFor(pid){
+  if(networkMode!=='host'||!netSelfId)return null;
   const p=players.find(x=>x.id===pid);
-  if(!p||!p.peerId||p.peerId===peer.id)return null;
-  const conn=peerConnections.get(p.peerId);
-  return conn&&conn.open?conn:null;
+  if(!p||!p.peerId||p.peerId===netSelfId)return null;
+  return p.peerId;
 }
 function chooseModal(title,body,buttons=[],wide=false,targetPid=null){
   const pid=targetPid===null ? (players[current]?.id ?? null) : targetPid;
-  const conn=pid===null?null:controllerConnectionFor(pid);
-  if(conn){
+  const remotePeer=pid===null?null:controllerPeerFor(pid);
+  if(remotePeer){
     const requestId='rm'+(remoteModalSeq++);
     return new Promise(resolve=>{
       pendingRemoteModals.set(requestId,data=>{
         lastModalFormState=data.formState||{};
         resolve(data.value);
       });
-      conn.send({type:'modal_request',requestId,title,body,buttons,wide});
+      netSend({type:'modal_request',requestId,title,body,buttons,wide},remotePeer);
     });
   }
   return showLocalModal(title,body,buttons,wide);
@@ -1471,7 +1470,7 @@ async function botTurn(p){
 function isLocallyControlled(p){
   if(!p||p.bot)return false;
   if(networkMode==='local')return true;
-  if(networkMode==='host')return !!peer&&p.peerId===peer.id;
+  if(networkMode==='host')return !!netSelfId&&p.peerId===netSelfId;
   if(networkMode==='guest')return p.id===localPlayerId;
   return false;
 }
@@ -1725,56 +1724,43 @@ function setOnlineStatus(msg,kind=''){
   el.classList.remove('ok','err','busy');
   if(kind)el.classList.add(kind);
 }
-const PEER_OPTIONS={
-  debug:2,
-  pingInterval:5000,
-  config:{
-    iceServers:[
-      {urls:'stun:stun.l.google.com:19302'},
-      {urls:'stun:stun1.l.google.com:19302'},
-      {urls:'stun:stun2.l.google.com:19302'},
-      {urls:'stun:openrelay.metered.ca:80'},
-      {
-        urls:'turn:openrelay.metered.ca:80',
-        username:'openrelayproject',
-        credential:'openrelayproject'
-      },
-      {
-        urls:'turn:openrelay.metered.ca:443',
-        username:'openrelayproject',
-        credential:'openrelayproject'
-      },
-      {
-        urls:'turn:openrelay.metered.ca:443?transport=tcp',
-        username:'openrelayproject',
-        credential:'openrelayproject'
-      }
-    ],
-    iceCandidatePoolSize:4,
-    sdpSemantics:'unified-plan'
-  }
-};
-function safeDestroyPeer(){
-  if(hostConn){try{hostConn.close();}catch(e){} hostConn=null;}
-  if(peer){try{peer.destroy();}catch(e){} peer=null;}
+function cleanProfile(p){
+  return {
+    peerId:String(p.peerId||''),
+    name:String(p.name||'Игрок').slice(0,18),
+    icon:p.icon||tokenIcons[0],
+    color:p.color||defaultColors[0]
+  };
 }
-function peerErrorText(err){
-  const type=err?.type||'unknown';
-  const msg=err?.message||'неизвестная ошибка';
-  if(type==='unavailable-id')return 'Такой код комнаты уже занят. Создайте комнату ещё раз.';
-  if(type==='network'||type==='server-error'||type==='socket-error'||type==='socket-closed')
-    return 'Не удалось связаться с сервером комнат. Проверьте интернет и попробуйте ещё раз.';
-  if(type==='peer-unavailable')
-    return 'Комната с таким кодом сейчас не найдена. Убедитесь, что код введён правильно и вкладка хоста остаётся открытой.';
-  if(type==='webrtc')
-    return 'Комната найдена, но браузеры не смогли установить WebRTC-соединение. Попробуйте ещё раз или смените сеть.';
-  if(type==='browser-incompatible')return 'Этот браузер не поддерживает WebRTC. Откройте игру в актуальном Chrome, Edge или Firefox.';
-  return `Ошибка сети (${type}): ${msg}`;
-}
-function makePeer(id=null){
-  return id ? new Peer(id,PEER_OPTIONS) : new Peer(PEER_OPTIONS);
-}
+function renderLobby(){
+  const list=$('#lobbyList');
+  if(!list)return;
+  list.innerHTML=lobbyProfiles.map((p,i)=>`<div class="lobby-user">
+    <span class="lobby-dot" style="--c:${esc(p.color)}"></span>
+    <b>${esc(p.icon)} ${esc(p.name)}</b>
+    <small>${i===0?'ХОСТ':'ИГРОК '+(i+1)}</small>
+  </div>`).join('');
 
+  if(networkMode==='host'){
+    $('#onlineStartBtn').classList.toggle('hidden',lobbyProfiles.length<2);
+    setRoomUi('host');
+    setOnlineStatus(
+      lobbyProfiles.length<2
+        ? `Комната ${roomCode} создана. Друг должен нажать «Войти в комнату» и ввести этот код.`
+        : `Подключено игроков: ${lobbyProfiles.length}/4. Можно запускать матч.`,
+      lobbyProfiles.length<2?'busy':'ok'
+    );
+  }else if(networkMode==='guest'){
+    setRoomUi('guest');
+    setOnlineStatus(`Подключено. В комнате ${lobbyProfiles.length}/4 игроков. Ожидайте запуска хостом.`,'ok');
+  }
+}
+function generateRoomCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';
+  for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
 function setRoomUi(mode){
   const isHost=mode==='host';
   const isGuest=mode==='guest';
@@ -1793,9 +1779,41 @@ function setRoomUi(mode){
     $('#onlineStartBtn').classList.add('hidden');
   }
 }
+async function loadNetModule(){
+  if(!netModulePromise){
+    netModulePromise=import('https://cdn.jsdelivr.net/npm/trystero@0.25.4/+esm')
+      .catch(()=>import('https://esm.run/trystero@0.25.4'));
+  }
+  return netModulePromise;
+}
+function netSend(data,targetPeerId=null){
+  if(!netAction)return false;
+  try{
+    if(targetPeerId)netAction.send(data,{target:targetPeerId});
+    else netAction.send(data);
+    return true;
+  }catch(err){
+    console.warn('BLACK CIRCUIT network send error',err);
+    return false;
+  }
+}
+function broadcastNet(data){
+  if(networkMode!=='host')return;
+  netSend(data);
+}
+function closeNetRoom(){
+  clearTimeout(joinRoomTimeout);
+  joinRoomTimeout=null;
+  if(netRoom){
+    try{netRoom.leave();}catch(e){}
+  }
+  netRoom=null;
+  netAction=null;
+  netSelfId='';
+  hostPeerId='';
+}
 function leaveOnlineRoom(){
-  safeDestroyPeer();
-  peerConnections.clear();
+  closeNetRoom();
   pendingRemoteModals.clear();
   lobbyProfiles=[];
   networkMode='local';
@@ -1813,48 +1831,13 @@ function leaveOnlineRoom(){
   $('#joinBox').classList.add('hidden');
   setOnlineStatus('Один игрок создаёт комнату. Все остальные только входят по его коду.');
 }
-
-function cleanProfile(p){
-  return {peerId:p.peerId,name:String(p.name||'Игрок').slice(0,18),icon:p.icon||tokenIcons[0],color:p.color||defaultColors[0]};
-}
-function renderLobby(){
-  const list=$('#lobbyList');
-  if(!list)return;
-  list.innerHTML=lobbyProfiles.map((p,i)=>`<div class="lobby-user"><span class="lobby-dot" style="--c:${esc(p.color)}"></span><b>${esc(p.icon)} ${esc(p.name)}</b><small>${i===0?'ХОСТ':'ИГРОК '+(i+1)}</small></div>`).join('');
-  if(networkMode==='host'){
-    $('#onlineStartBtn').classList.toggle('hidden',lobbyProfiles.length<2);
-    setRoomUi('host');
-    setOnlineStatus(
-      lobbyProfiles.length<2
-        ? `Комната ${roomCode} создана. Друг должен нажать «Войти в комнату» и ввести именно этот код.`
-        : `Подключено игроков: ${lobbyProfiles.length}/4. Можно запускать матч.`,
-      lobbyProfiles.length<2?'busy':'ok'
-    );
-  }else if(networkMode==='guest'){
-    setRoomUi('guest');
-    setOnlineStatus(`Подключено. В комнате ${lobbyProfiles.length}/4 игроков. Ожидайте запуска хостом.`,'ok');
-  }
-}
-function generateRoomCode(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s='';
-  for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
-  return s;
-}
-function broadcastNet(data){
-  if(networkMode!=='host')return;
-  peerConnections.forEach(conn=>{ if(conn&&conn.open){ try{conn.send(data);}catch(e){} } });
-}
-function broadcastLobby(){
-  if(networkMode!=='host')return;
-  const payload={type:'lobby_state',roomCode,profiles:lobbyProfiles.map(cleanProfile)};
-  broadcastNet(payload);
-  renderLobby();
-}
 function serializeGameState(){
   return {
     players:players.map(p=>({...p})),
-    map:map.map(c=>({index:c.index,name:c.name,owner:c.owner,level:c.level,boosted:c.boosted,mortgaged:!!c.mortgaged,renameUsed:!!c.renameUsed,renamedBy:c.renamedBy??null})),
+    map:map.map(c=>({
+      index:c.index,name:c.name,owner:c.owner,level:c.level,boosted:c.boosted,
+      mortgaged:!!c.mortgaged,renameUsed:!!c.renameUsed,renamedBy:c.renamedBy??null
+    })),
     current,round,started,phase,gameEnded,
     status:$('#turnStatus')?.textContent||'',
     logs:[...document.querySelectorAll('#logList .log-item')].slice(-80).map(x=>x.textContent),
@@ -1872,178 +1855,275 @@ function applyGameState(state){
   players=(state.players||[]).map(p=>({...p}));
   (state.map||[]).forEach(s=>{
     const c=map[s.index];
-    if(c)Object.assign(c,{name:s.name,owner:s.owner,level:s.level,boosted:s.boosted,mortgaged:!!s.mortgaged,renameUsed:!!s.renameUsed,renamedBy:s.renamedBy??null});
+    if(c)Object.assign(c,{
+      name:s.name,owner:s.owner,level:s.level,boosted:s.boosted,
+      mortgaged:!!s.mortgaged,renameUsed:!!s.renameUsed,renamedBy:s.renamedBy??null
+    });
   });
-  current=state.current??0;round=state.round??1;started=!!state.started;phase=state.phase||'awaitRoll';gameEnded=!!state.gameEnded;
+
+  current=state.current??0;
+  round=state.round??1;
+  started=!!state.started;
+  phase=state.phase||'awaitRoll';
+  gameEnded=!!state.gameEnded;
+
   if(Array.isArray(state.dice)&&state.dice.length===2){
     lastDice=state.dice;
-    setDieFace($('#die1'),lastDice[0]);setDieFace($('#die2'),lastDice[1]);
+    setDieFace($('#die1'),lastDice[0]);
+    setDieFace($('#die2'),lastDice[1]);
   }
+
   $('#setupOverlay').classList.toggle('hidden',started);
-  if(peer)localPlayerId=players.find(p=>p.peerId===peer.id)?.id ?? localPlayerId;
+  if(netSelfId)localPlayerId=players.find(p=>p.peerId===netSelfId)?.id ?? localPlayerId;
+
   const needTokens=document.querySelectorAll('#tokenLayer .token').length!==players.length;
   if(needTokens)createTokens();
-  renderBoardState();renderPlayers();
+
+  renderBoardState();
+  renderPlayers();
   setStatus(state.status||'');
+
   const log=$('#logList');
   if(log&&Array.isArray(state.logs)){
     log.innerHTML=state.logs.map(x=>`<div class="log-item">${esc(x)}</div>`).join('');
     log.scrollTop=log.scrollHeight;
   }
+
   repositionTokens([...oldPositions].some(([id,pos])=>players.find(p=>p.id===id)?.position!==pos));
   updateActionButtons();
 }
-function setupConnectionHandlers(conn,isHostSide){
-  conn.on('data',async data=>{
-    if(!data||typeof data!=='object')return;
-    if(isHostSide){
-      if(data.type==='join'){
-        if(started){conn.send({type:'error',message:'Матч уже начался.'});return;}
-        if(lobbyProfiles.some(p=>p.peerId===conn.peer))return;
-        if(lobbyProfiles.length>=4){conn.send({type:'error',message:'Комната заполнена.'});conn.close();return;}
-        lobbyProfiles.push(cleanProfile({peerId:conn.peer,...data.profile}));
-        broadcastLobby();
-        return;
-      }
-      if(data.type==='modal_response'){
-        const cb=pendingRemoteModals.get(data.requestId);
-        if(cb){pendingRemoteModals.delete(data.requestId);cb(data);}
-        return;
-      }
-      if(data.type==='command'){
-        await handleHostCommand(conn.peer,data.cmd,data.payload||{});
-        return;
-      }
-    }else{
-      if(data.type==='lobby_state'){
-        lobbyProfiles=(data.profiles||[]).map(cleanProfile);
-        roomCode=data.roomCode||roomCode;
-        $('#roomCodeWrap').classList.remove('hidden');
-        $('#roomCodeText').textContent=roomCode;
-        renderLobby();
-        return;
-      }
-      if(data.type==='game_start'){
-        applyGameState(data.state);
-        localPlayerId=players.find(p=>p.peerId===peer.id)?.id ?? null;
-        setOnlineStatus('Матч запущен.');
-        return;
-      }
-      if(data.type==='state'){
-        applyGameState(data.state);
-        return;
-      }
-      if(data.type==='visual_dice'){
-        animateDice([data.a,data.b],true);
-        return;
-      }
-      if(data.type==='modal_request'){
-        const value=await showLocalModal(data.title,data.body,data.buttons||[],!!data.wide);
-        if(hostConn&&hostConn.open)hostConn.send({type:'modal_response',requestId:data.requestId,value,formState:lastModalFormState});
-        return;
-      }
-      if(data.type==='toast'){toast(data.message||'');return;}
-      if(data.type==='error'){setOnlineStatus(data.message||'Ошибка соединения');return;}
-      if(data.type==='victory'){
-        showLocalModal('Матч завершён',data.body,[{label:'Понятно',value:'ok',cls:'primary'}],false);
-        return;
-      }
-    }
-  });
-  conn.on('close',()=>{
-    if(isHostSide&&!started){
-      lobbyProfiles=lobbyProfiles.filter(p=>p.peerId!==conn.peer);
-      peerConnections.delete(conn.peer);
-      broadcastLobby();
-    }else if(!isHostSide){
-      setOnlineStatus('Соединение с хостом потеряно. Обновите страницу и войдите снова.');
-    }
-  });
+function broadcastLobby(){
+  if(networkMode!=='host')return;
+  const payload={
+    type:'lobby_state',
+    roomCode,
+    hostPeerId:netSelfId,
+    profiles:lobbyProfiles.map(cleanProfile)
+  };
+  broadcastNet(payload);
+  renderLobby();
 }
-async function createRoom(){
-  if(typeof Peer==='undefined'){
-    setOnlineStatus('Сетевой модуль не загрузился. Обновите страницу при включённом интернете.','err');
+async function handleNetMessage(data,senderPeerId){
+  if(!data||typeof data!=='object'||!senderPeerId)return;
+
+  if(networkMode==='host'){
+    if(data.type==='join'){
+      if(started){
+        netSend({type:'error',message:'Матч уже начался.'},senderPeerId);
+        return;
+      }
+
+      if(lobbyProfiles.some(p=>p.peerId===senderPeerId)){
+        netSend({
+          type:'lobby_state',
+          roomCode,
+          hostPeerId:netSelfId,
+          profiles:lobbyProfiles.map(cleanProfile)
+        },senderPeerId);
+        return;
+      }
+
+      if(lobbyProfiles.length>=4){
+        netSend({type:'error',message:'Комната заполнена.'},senderPeerId);
+        return;
+      }
+
+      lobbyProfiles.push(cleanProfile({peerId:senderPeerId,...data.profile}));
+      broadcastLobby();
+      return;
+    }
+
+    if(data.type==='modal_response'){
+      const cb=pendingRemoteModals.get(data.requestId);
+      if(cb){
+        pendingRemoteModals.delete(data.requestId);
+        cb(data);
+      }
+      return;
+    }
+
+    if(data.type==='command'){
+      await handleHostCommand(senderPeerId,data.cmd,data.payload||{});
+      return;
+    }
     return;
   }
 
-  safeDestroyPeer();
-  peerConnections.clear();
+  if(networkMode!=='guest')return;
+
+  // После первого ответа хоста игнорируем игровые сообщения от остальных гостей.
+  if(hostPeerId&&senderPeerId!==hostPeerId&&data.type!=='host_hello')return;
+
+  if(data.type==='host_hello'){
+    hostPeerId=senderPeerId;
+    netSend({type:'join',profile:profileFromOnlineInputs()},hostPeerId);
+    return;
+  }
+
+  if(data.type==='lobby_state'){
+    clearTimeout(joinRoomTimeout);
+    joinRoomTimeout=null;
+    hostPeerId=data.hostPeerId||senderPeerId;
+    lobbyProfiles=(data.profiles||[]).map(cleanProfile);
+    roomCode=data.roomCode||roomCode;
+    $('#roomCodeWrap').classList.remove('hidden');
+    $('#roomCodeText').textContent=roomCode;
+    renderLobby();
+    return;
+  }
+
+  if(data.type==='game_start'){
+    clearTimeout(joinRoomTimeout);
+    joinRoomTimeout=null;
+    hostPeerId=hostPeerId||senderPeerId;
+    applyGameState(data.state);
+    localPlayerId=players.find(p=>p.peerId===netSelfId)?.id ?? null;
+    setOnlineStatus('Матч запущен.','ok');
+    return;
+  }
+
+  if(data.type==='state'){
+    applyGameState(data.state);
+    return;
+  }
+
+  if(data.type==='visual_dice'){
+    animateDice([data.a,data.b],true);
+    return;
+  }
+
+  if(data.type==='modal_request'){
+    const value=await showLocalModal(data.title,data.body,data.buttons||[],!!data.wide);
+    netSend({
+      type:'modal_response',
+      requestId:data.requestId,
+      value,
+      formState:lastModalFormState
+    },hostPeerId||senderPeerId);
+    return;
+  }
+
+  if(data.type==='toast'){
+    toast(data.message||'');
+    return;
+  }
+
+  if(data.type==='error'){
+    setOnlineStatus(data.message||'Ошибка соединения','err');
+    return;
+  }
+
+  if(data.type==='victory'){
+    showLocalModal(
+      'Матч завершён',
+      data.body,
+      [{label:'Понятно',value:'ok',cls:'primary'}],
+      false
+    );
+  }
+}
+async function openNetworkRoom(code,mode){
+  const mod=await loadNetModule();
+
+  networkMode=mode;
+  netSelfId=mod.selfId;
+
+  const config={
+    appId:'black-circuit-monopolyskibidi-v11',
+    password:code,
+    relayConfig:{redundancy:5},
+    trickleIce:true
+  };
+
+  netRoom=mod.joinRoom(
+    config,
+    code.toLowerCase(),
+    {
+      onJoinError:details=>{
+        const peerId=details?.peerId||'';
+        const err=details?.error?.message||details?.error||'WebRTC соединение не установлено';
+        console.warn('BLACK CIRCUIT join error',details);
+        if(networkMode==='guest'){
+          setOnlineStatus(
+            `Комната найдена, но прямое соединение с ${peerId?'игроком':'хостом'} не установилось: ${String(err)}. Попробуйте ещё раз или другую сеть.`,
+            'err'
+          );
+        }
+      }
+    }
+  );
+
+  netAction=netRoom.makeAction('bcmsg');
+  netAction.onMessage=(data,meta={})=>handleNetMessage(data,meta.peerId);
+
+  netRoom.onPeerJoin=peerId=>{
+    if(networkMode==='host'){
+      netSend({type:'host_hello',roomCode},peerId);
+    }else if(networkMode==='guest'){
+      // Если первым встретили хоста — он ответит lobby_state.
+      netSend({type:'join',profile:profileFromOnlineInputs()},peerId);
+    }
+  };
+
+  netRoom.onPeerLeave=peerId=>{
+    if(networkMode==='host'){
+      const before=lobbyProfiles.length;
+      lobbyProfiles=lobbyProfiles.filter(p=>p.peerId!==peerId);
+      if(lobbyProfiles.length!==before)broadcastLobby();
+    }else if(networkMode==='guest'&&peerId===hostPeerId){
+      setOnlineStatus('Хост покинул комнату или потерял соединение.','err');
+    }
+  };
+}
+async function createRoom(){
+  if(networkMode==='host'){
+    setOnlineStatus('Комната уже создана. Передайте показанный код другу.','busy');
+    return;
+  }
+
+  closeNetRoom();
+  pendingRemoteModals.clear();
   lobbyProfiles=[];
   roomCode=generateRoomCode();
-  // Сам код комнаты одновременно является PeerJS ID.
-  // Так другу не нужен отдельный сервер/база для поиска комнаты.
-  const hostId=roomCode.toLowerCase();
 
-  setOnlineStatus('Соединяемся с сервером комнат…','busy');
   $('#createRoomBtn').disabled=true;
-
-  let settled=false;
-  const timeout=setTimeout(()=>{
-    if(settled)return;
-    settled=true;
-    safeDestroyPeer();
-    $('#createRoomBtn').disabled=false;
-    setOnlineStatus(
-      'Сервер комнат не ответил за 12 секунд. Нажмите «Создать комнату» ещё раз. Если игра открыта как файл с диска, лучше проверить также версию на GitHub Pages.',
-      'err'
-    );
-  },12000);
+  setOnlineStatus('Запускаем онлайн-комнату…','busy');
 
   try{
-    peer=makePeer(hostId);
+    await openNetworkRoom(roomCode,'host');
 
-    peer.on('open',()=>{
-      if(settled)return;
-      settled=true;
-      clearTimeout(timeout);
-      networkMode='host';
-      localPlayerId=0;
-      lobbyProfiles=[cleanProfile({peerId:peer.id,...profileFromOnlineInputs()})];
+    localPlayerId=0;
+    lobbyProfiles=[
+      cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()})
+    ];
 
-      $('#roomCodeWrap').classList.remove('hidden');
-      $('#roomCodeText').textContent=roomCode;
-      $('#joinBox').classList.add('hidden');
-      $('#createRoomBtn').disabled=false;
-
-      renderLobby();
-      setRoomUi('host');
-      setOnlineStatus(`Комната ${roomCode} создана. Передайте код другу. На этом устройстве больше ничего вводить не нужно.`, 'ok');
-    });
-
-    peer.on('connection',conn=>{
-      peerConnections.set(conn.peer,conn);
-      setupConnectionHandlers(conn,true);
-    });
-
-    peer.on('disconnected',()=>{
-      if(!started) setOnlineStatus('Связь с сервером комнат временно потеряна. Пытаемся восстановить…','busy');
-      try{ if(peer&&!peer.destroyed) peer.reconnect(); }catch(e){}
-    });
-
-    peer.on('error',err=>{
-      if(!settled){
-        settled=true;
-        clearTimeout(timeout);
-      }
-      $('#createRoomBtn').disabled=false;
-      setOnlineStatus(peerErrorText(err),'err');
-    });
-  }catch(err){
-    if(!settled){
-      settled=true;
-      clearTimeout(timeout);
-    }
+    $('#roomCodeWrap').classList.remove('hidden');
+    $('#roomCodeText').textContent=roomCode;
+    $('#joinBox').classList.add('hidden');
     $('#createRoomBtn').disabled=false;
-    setOnlineStatus('Не удалось запустить онлайн-комнату: '+(err?.message||err),'err');
+
+    renderLobby();
+    setRoomUi('host');
+    setOnlineStatus(
+      `Комната ${roomCode} создана. Передайте код другу. Друг нажимает только «Войти в комнату».`,
+      'ok'
+    );
+  }catch(err){
+    closeNetRoom();
+    networkMode='local';
+    $('#createRoomBtn').disabled=false;
+    setOnlineStatus(
+      'Не удалось загрузить новый сетевой модуль. Проверьте интернет и обновите страницу. '+(err?.message||''),
+      'err'
+    );
   }
 }
 async function joinRoom(){
   if(networkMode==='host'){
-    setOnlineStatus('Вы уже хост этой комнаты. Чтобы войти в чужую комнату, сначала нажмите «Покинуть комнату».','err');
-    return;
-  }
-  if(typeof Peer==='undefined'){
-    setOnlineStatus('Сетевой модуль не загрузился. Обновите страницу при включённом интернете.','err');
+    setOnlineStatus(
+      'Вы уже хост. Чтобы войти в чужую комнату, сначала нажмите «Покинуть комнату».',
+      'err'
+    );
     return;
   }
 
@@ -2053,95 +2133,91 @@ async function joinRoom(){
     return;
   }
 
-  safeDestroyPeer();
+  closeNetRoom();
+  pendingRemoteModals.clear();
+  lobbyProfiles=[];
   roomCode=code;
-  networkMode='guest';
+  hostPeerId='';
+
   $('#joinRoomBtn').disabled=true;
-  setOnlineStatus('Подключаемся к комнате…','busy');
-
-  let settled=false;
-  let connOpened=false;
-
-  const timeout=setTimeout(()=>{
-    if(settled)return;
-    settled=true;
-    safeDestroyPeer();
-    $('#joinRoomBtn').disabled=false;
-    setOnlineStatus('За 12 секунд соединение не установилось. Проверьте код, убедитесь что хост не закрыл вкладку. Если код верный, проблема может быть в сети/NAT — в этой версии добавлен TURN-ретранслятор. Попробуйте подключиться ещё раз.','err');
-  },12000);
+  setOnlineStatus('Ищем комнату через распределённую сеть…','busy');
 
   try{
-    peer=makePeer();
+    await openNetworkRoom(code,'guest');
+    setRoomUi('guest');
 
-    peer.on('open',()=>{
-      if(settled)return;
-
-      hostConn=peer.connect(code.toLowerCase(),{
-        reliable:true,
-        serialization:'json',
-        metadata:{game:'black-circuit'}
-      });
-
-      setupConnectionHandlers(hostConn,false);
-
-      hostConn.on('open',()=>{
-        if(settled)return;
-        settled=true;
-        connOpened=true;
-        clearTimeout(timeout);
-        $('#joinRoomBtn').disabled=false;
-
-        hostConn.send({type:'join',profile:profileFromOnlineInputs()});
-        $('#roomCodeWrap').classList.remove('hidden');
-        $('#roomCodeText').textContent=code;
-        setRoomUi('guest');
-        setOnlineStatus('Подключено к комнате. Ожидаем запуска хостом.','ok');
-      });
-
-      hostConn.on('error',err=>{
-        if(!settled){
-          settled=true;
-          clearTimeout(timeout);
-        }
-        $('#joinRoomBtn').disabled=false;
-        setOnlineStatus('Ошибка подключения к комнате: '+(err?.message||'соединение не установлено'),'err');
-      });
-
-      hostConn.on('close',()=>{
-        if(!connOpened)return;
-        setOnlineStatus('Соединение с хостом потеряно. Нажмите «Покинуть комнату» и подключитесь заново.','err');
-      });
-    });
-
-    peer.on('error',err=>{
-      if(!settled){
-        settled=true;
-        clearTimeout(timeout);
-      }
+    // Trystero/Nostr не имеет центрального "списка комнат":
+    // успешным вход считаем только после lobby_state от настоящего хоста.
+    joinRoomTimeout=setTimeout(()=>{
+      if(networkMode!=='guest'||hostPeerId)return;
+      closeNetRoom();
+      networkMode='local';
       $('#joinRoomBtn').disabled=false;
-      setOnlineStatus(peerErrorText(err),'err');
-    });
+      $('#createRoomBtn').disabled=false;
+      $('#showJoinBtn').disabled=false;
+      $('#leaveRoomBtn').classList.add('hidden');
+      setOnlineStatus(
+        'Хост с таким кодом не обнаружен за 25 секунд. Проверьте код и убедитесь, что у хоста открыта эта же версия v11. Затем попробуйте ещё раз.',
+        'err'
+      );
+    },25000);
+
+    // Если peer уже был найден до установки onPeerJoin, периодически повторяем объявление.
+    let tries=0;
+    const announce=()=>{
+      if(networkMode!=='guest'||hostPeerId||tries>=8)return;
+      tries++;
+      netSend({type:'join',profile:profileFromOnlineInputs()});
+      setTimeout(announce,1800);
+    };
+    announce();
   }catch(err){
-    if(!settled){
-      settled=true;
-      clearTimeout(timeout);
-    }
+    closeNetRoom();
+    networkMode='local';
     $('#joinRoomBtn').disabled=false;
-    setOnlineStatus('Не удалось запустить подключение: '+(err?.message||err),'err');
+    $('#createRoomBtn').disabled=false;
+    $('#showJoinBtn').disabled=false;
+    setOnlineStatus(
+      'Не удалось запустить сетевое подключение. '+(err?.message||'Проверьте интернет.'),
+      'err'
+    );
   }
 }
 function startOnlineGame(){
   if(networkMode!=='host'||lobbyProfiles.length<2||lobbyProfiles.length>4)return;
+
   players=lobbyProfiles.map((pr,i)=>({
-    id:i,name:pr.name,icon:pr.icon,color:pr.color,bot:false,peerId:pr.peerId,
-    cash:ECON.startCash,position:0,active:true,inJail:false,jailFails:0,skipTurns:0,
-    doubleStreak:0,upgradeUsedThisTurn:false,maxCapital:ECON.startCash
+    id:i,
+    name:pr.name,
+    icon:pr.icon,
+    color:pr.color,
+    bot:false,
+    peerId:pr.peerId,
+    cash:ECON.startCash,
+    position:0,
+    active:true,
+    inJail:false,
+    jailFails:0,
+    skipTurns:0,
+    doubleStreak:0,
+    upgradeUsedThisTurn:false,
+    maxCapital:ECON.startCash
   }));
-  localPlayerId=0;
+
+  localPlayerId=players.find(p=>p.peerId===netSelfId)?.id ?? 0;
   $('#setupOverlay').classList.add('hidden');
-  started=true;phase='awaitRoll';current=0;round=1;gameEnded=false;
-  createTokens();renderBoardState();renderPlayers();
+
+  started=true;
+  phase='awaitRoll';
+  current=0;
+  round=1;
+  gameEnded=false;
+
+  createTokens();
+  renderBoardState();
+  renderPlayers();
   addLog(`Онлайн-матч начался. Комната ${roomCode}. Стартовый капитал: ${money(ECON.startCash)}.`);
+
   broadcastNet({type:'game_start',state:serializeGameState()});
   startTurn();
 }
@@ -2149,17 +2225,18 @@ async function handleHostCommand(senderPeerId,cmd,payload){
   const sender=players.find(p=>p.peerId===senderPeerId);
   if(!sender||!sender.active)return;
   if(sender.id!==current||phase!=='awaitRoll'||sender.inJail)return;
+
   if(cmd==='roll')return rollTurn();
   if(cmd==='manage')return manageProperties();
   if(cmd==='trade')return tradeProperties();
 }
 function sendCommand(cmd,payload={}){
-  if(networkMode==='guest'&&hostConn&&hostConn.open){
-    hostConn.send({type:'command',cmd,payload});
-    return true;
+  if(networkMode==='guest'&&hostPeerId){
+    return netSend({type:'command',cmd,payload},hostPeerId);
   }
   return false;
 }
+
 function buildSetup(){
   const wrap=$('#setupPlayers');
   wrap.innerHTML='';
@@ -2260,7 +2337,7 @@ async function showRules(){
     <p><b>Красные поля:</b> это цеха, заводы и промышленные объекты. Их нельзя улучшать. Каждый купленный одним игроком красный объект добавляет <b>+${money(ECON.industrialBonusPerOwned)}</b> к аренде каждой его красной клетки.</p>
     <p><b>Торговля:</b> перед броском кубиков текущий игрок может предложить любому активному сопернику деньги, территории или комбинированный обмен. Бот оценивает предложение автоматически, человек принимает или отклоняет его вручную.</p>
     <p><b>Переименование:</b> после покупки владелец может один раз за всю партию переименовать клетку. Повторное переименование запрещено, как и название, которое уже используется другой клеткой.</p>
-    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. Матч идёт по P2P-соединению, поэтому вкладка хоста должна оставаться открытой.</p>
+    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v11 поиск игроков идёт через распределённые Nostr-реле, после чего игровые данные передаются напрямую между браузерами. Вкладка хоста должна оставаться открытой.</p>
     <p><b>Дубли:</b> первый и второй подряд дают дополнительный бросок. Третий подряд немедленно отправляет в тюрьму.</p>
     <p><b>Тюрьма:</b> игрок имеет две попытки выбить дубль. После первой неудачи остаётся в тюрьме. После второй неудачи обязан заплатить ${money(ECON.bail)}, затем выходит и движется по результату второй попытки.</p>
     <p><b>2×:</b> временно удваивает доход выбранной вашей территории до первого попадания соперника.</p>
