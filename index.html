@@ -837,14 +837,14 @@ button{border:0;cursor:pointer}
         <div id="tokenLayer" class="token-layer"></div>
       </div>
     </section>
-    <section class="panel log-panel"><div class="panel-title">Ход игры <span>LIVE</span></div><div class="log"><div id="logList" class="log-list"></div><div class="info-box"><div class="economy"><div class="eco"><span>За круг</span><b id="passStartInfo">200 000</b></div><div class="eco"><span>Точно на Старт</span><b id="exactStartInfo">300 000</b></div><div class="eco"><span>Выход из тюрьмы</span><b id="bailInfo">75 000</b></div><div class="eco"><span>Казино</span><b>50% баланса</b></div><div class="eco"><span>Max уровень</span><b>5★</b></div><div class="eco"><span>Цеха</span><b>3–12% max баланса</b></div></div></div></div></section>
+    <section class="panel log-panel"><div class="panel-title">Ход игры <span>LIVE</span></div><div class="log"><div id="logList" class="log-list"></div><div class="info-box"><div class="economy"><div class="eco"><span>За круг</span><b id="passStartInfo">200 000</b></div><div class="eco"><span>Точно на Старт</span><b id="exactStartInfo">300 000</b></div><div class="eco"><span>Выход из тюрьмы</span><b id="bailInfo">75 000</b></div><div class="eco"><span>Казино</span><b>50% баланса</b></div><div class="eco"><span>Max уровень</span><b>5★</b></div><div class="eco"><span>Цеха</span><b>3–12% текущего баланса</b></div></div></div></div></section>
   </main>
 </div>
 <div id="toast" class="toast"></div>
 <div id="modalOverlay" class="overlay hidden"><div id="modalDialog" class="dialog"><div id="modalTitle" class="dialog-head"></div><div id="modalBody" class="dialog-body"></div><div id="modalActions" class="dialog-actions"></div></div></div>
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
-    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v30 READY</span></div>
+    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v32 INTERVENTION</span></div>
     <div class="setup-sub"></div>
 
     <div class="mode-tabs">
@@ -863,7 +863,7 @@ button{border:0;cursor:pointer}
     </div>
 
     <div id="onlineSetup" class="hidden">
-      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v30-READY</div>
+      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v32-INTERVENTION</div>
 
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
@@ -881,7 +881,7 @@ button{border:0;cursor:pointer}
         <div id="roomCodeWrap" class="room-code-wrap hidden">
           <div style="font-size:12px;color:#8f9bb0">КОД КОМНАТЫ</div>
           <div id="roomCodeText" class="room-code">------</div>
-          <div class="room-hint">Передайте этот код друзьям. Друзья НЕ создают свою комнату — они нажимают «Войти в комнату» и вводят этот код. Максимум 4 игрока.</div>
+          <div class="room-hint">Передайте этот код друзьям. Друзья НЕ создают свою комнату — они нажимают «Войти в комнату» и вводят этот код. Максимум 4 игрока. Одинаковые цвета автоматически заменяются на свободные.</div>
         </div>
         <div id="onlineStatus" class="online-status">Один игрок создаёт комнату. Все остальные только входят по его коду.</div>
         <div id="lobbyList" class="lobby-list"></div>
@@ -1129,8 +1129,8 @@ function starSellValue(prop){ return isUpgradeable(prop)&&prop.level>0 ? round10
 function industrialRate(pid){ return Math.min(.12, monopolyOwnedCount(pid)*.03); }
 function industrialPayment(prop,payer){
   if(!prop||prop.type!=='m'||prop.owner===null||!payer)return 0;
-  const maxBalance=Math.max(Number(payer.maxCash||0),Number(payer.cash||0),ECON.startCash);
-  return round1000(maxBalance*industrialRate(prop.owner));
+  const currentBalance=Math.max(0,Number(payer.cash||0));
+  return round1000(currentBalance*industrialRate(prop.owner));
 }
 function projectedIndustrialRate(pid){ return Math.min(.12,(monopolyOwnedCount(pid)+1)*.03); }
 function rentAtLevel(prop,level,fullMonopoly=false){
@@ -1358,7 +1358,7 @@ function renderBoardState(){
         const op=players.find(x=>x.id===c.owner);
         rentEl.textContent = `Залог · ${mortgageTurnsLeft(c,op)} х.`;
       }else if(c.type==='m'){
-        rentEl.textContent = `${Math.round(industrialRate(c.owner)*100)}% max`;
+        rentEl.textContent = `${Math.round(industrialRate(c.owner)*100)}% текущего`;
       }else{
         const shownRent = c.boosted ? calcRent(c)*2 : calcRent(c);
         rentEl.textContent = `Аренда ${compact(shownRent)}`;
@@ -1817,7 +1817,7 @@ async function offerPurchase(p,prop){
       <div class="modal-money">${money(prop.price)}</div>
       <p>Красные поля — цеха и заводы. Их нельзя улучшать звёздами и нельзя усиливать Мультиплеером.</p>
       <p>После покупки попадание соперника на <b>любую</b> вашу красную клетку будет стоить ему
-      <b>${projected}% от его максимального баланса за матч</b>.<br>
+      <b>${projected}% от его текущего баланса</b>.<br>
       1 цех = 3%, 2 = 6%, 3 = 9%, 4 = 12%.</p>`;
   }else{
     body=`
@@ -1877,7 +1877,7 @@ function buyProperty(p,prop){
   if(prop.type==='m'){
     const count=monopolyOwnedCount(p.id);
     toast(`Промышленность: ${count}/4`);
-    addLog(`Теперь у ${p.name} ${count}/4 промышленных объектов. Красные клетки берут ${count*3}% от максимального баланса соперника.`);
+    addLog(`Теперь у ${p.name} ${count}/4 промышленных объектов. Красные клетки берут ${count*3}% от текущего баланса соперника.`);
   }else toast('Территория куплена');
   renderBoardState();renderPlayers();pulseCell(prop.index);
   checkVictory();
@@ -2118,9 +2118,9 @@ async function event2x(p){
 }
 
 async function eventCas(p){
-  const opponentProps=map.filter(pr=>isOwnable(pr)&&pr.owner!==null&&pr.owner!==p.id);
+  const opponentProps=map.filter(pr=>interventionSelectable(pr,p.id));
   if(!opponentProps.length){
-    addLog(`${p.name} попал на Вмешательство, но у соперников нет территорий.`);
+    addLog(`${p.name} попал на Вмешательство, но сейчас нет доступных для атаки территорий.`);
     toast('Нет доступных территорий соперников');
     return;
   }
@@ -2139,7 +2139,7 @@ async function eventCas(p){
   if(pick===null||pick===undefined)return;
 
   const pr=map[Number(pick)];
-  if(!pr||pr.owner===null||pr.owner===p.id)return;
+  if(!pr||!interventionSelectable(pr,p.id))return;
 
   const target=players.find(x=>x.id===pr.owner);
   const targetName=target?.name||'соперник';
@@ -2149,9 +2149,19 @@ async function eventCas(p){
     addLog(`${p.name} вмешивается в ${pr.name} игрока ${targetName}: уровень снижен до ${pr.level}★.`);
     toast('Вмешательство: −1★');
   }else{
-    pr.owner=null;
-    pr.boosted=false;
-    clearMortgage(pr);
+    // Повторная страховка на случай, если состояние изменилось между выбором и применением.
+    if(pr.type==='p'){
+      const fullGroup=groupCells(pr.group).every(x=>x.owner===pr.owner);
+      const groupHasStars=groupCells(pr.group).some(x=>x.owner===pr.owner&&x.level>0);
+      if(fullGroup&&groupHasStars){
+        addLog(`Вмешательство не смогло разрушить ${pr.name}: в этой монополии ещё остались звёзды.`);
+        toast('Сначала снимите все звёзды монополии');
+        renderBoardState();
+        return;
+      }
+    }
+
+    releasePropertyToBank(pr);
     addLog(`${p.name} выбивает ${pr.name} из владений ${targetName}.`);
     toast('Территория возвращена банку');
   }
@@ -2161,7 +2171,6 @@ async function eventCas(p){
   renderPlayers();
   pulseCell(pr.index);
 }
-
 function buildCasinoSectors(prob){
   const count=20;
   const wins=Math.round(prob*count);
@@ -2807,12 +2816,36 @@ function resetBoardSelectionVisuals(){
     el.classList.remove('board-select-valid','board-select-invalid');
   });
 }
+function interventionSelectable(pr,playerId){
+  if(!pr||!isOwnable(pr)||pr.owner===null||pr.owner===playerId)return false;
+
+  // Цехи не имеют звёзд — их можно выбить сразу.
+  if(pr.type==='m')return true;
+
+  const ownerId=pr.owner;
+  const group=groupCells(pr.group).filter(x=>x.owner===ownerId);
+
+  // Если цветовая группа ещё не собрана полностью — обычное правило:
+  // звезда снимается, а 0★ клетка может вернуться банку.
+  if(group.length!==groupCells(pr.group).length){
+    return true;
+  }
+
+  // Если это полная монополия и хотя бы на одной её клетке есть звезда,
+  // ломать 0★ клетку нельзя. Сначала вмешательством нужно снять ВСЕ звёзды
+  // со всей монополии.
+  const hasAnyStars=group.some(x=>x.level>0);
+  if(hasAnyStars)return pr.level>0;
+
+  // Когда вся монополия уже 0★ — любую её клетку можно выбить.
+  return true;
+}
 function validBoardSelectionCells(mode,playerId,targetId=null){
   if(mode==='multiplier'){
     return ownedBy(playerId).filter(pr=>pr.type==='p'&&!pr.mortgaged).map(pr=>pr.index);
   }
   if(mode==='intervention'){
-    return map.filter(pr=>isOwnable(pr)&&pr.owner!==null&&pr.owner!==playerId).map(pr=>pr.index);
+    return map.filter(pr=>interventionSelectable(pr,playerId)).map(pr=>pr.index);
   }
   return [];
 }
@@ -2847,7 +2880,8 @@ function renderBoardSelectionPanel(mode,playerId,targetId=null){
       </div>
       <div class="trade-inline-help">
         Нажмите на <b style="color:#67e8f9">любую подсвеченную территорию любого соперника</b>.
-        Клетка потеряет 1★, а при 0★ полностью вернётся банку.
+        Если у полной монополии ещё есть хотя бы одна звезда, сначала можно снимать только звёзды.
+        Разрушить клетку монополии можно только после того, как <b>вся группа станет 0★</b>.
       </div>`;
   }
 }
@@ -3024,7 +3058,7 @@ function renderPropertyInline(pr){
 
   const monopolyInfo=pr.type==='p'
     ? `${groupOwnedCount(pr.owner??-1,pr.group)}/${groupCells(pr.group).length} у владельца · min ${groupMinLevel(pr.group)}★`
-    : `${pr.owner===null?0:monopolyOwnedCount(pr.owner)}/4 цехов · ${pr.owner===null?5:Math.round(industrialRate(pr.owner)*100)}% максимального баланса соперника`;
+    : `${pr.owner===null?0:monopolyOwnedCount(pr.owner)}/4 цехов · ${pr.owner===null?5:Math.round(industrialRate(pr.owner)*100)}% текущего баланса соперника`;
 
   panel.innerHTML=`
     <div class="interaction-head">
@@ -3035,7 +3069,7 @@ function renderPropertyInline(pr){
     </div>
     <div class="inline-meta">
       <div><span>Владелец</span><b>${esc(owner)}</b></div>
-      <div><span>${pr.owner===null?'Цена':(pr.type==='m'?'Доход':'Аренда')}</span><b>${pr.owner===null?money(pr.price):(pr.type==='m'?`${Math.round(industrialRate(pr.owner)*100)}% max`:money(rent))}</b></div>
+      <div><span>${pr.owner===null?'Цена':(pr.type==='m'?'Доход':'Аренда')}</span><b>${pr.owner===null?money(pr.price):(pr.type==='m'?`${Math.round(industrialRate(pr.owner)*100)}% текущего`:money(rent))}</b></div>
       <div><span>Уровень</span><b>${pr.type==='m'?'—':pr.level+'★'}</b></div>
       <div><span>Залог</span><b>${pr.mortgaged?`${mortgageTurnsLeft(pr,players.find(x=>x.id===pr.owner))} ход.`:money(mortgageValue(pr))}</b></div>
     </div>
@@ -3716,6 +3750,20 @@ function cleanProfile(p){
     color:p.color||defaultColors[0]
   };
 }
+function normalizeLobbyColor(profile,existingProfiles=[]){
+  const used=new Set(
+    existingProfiles
+      .map(p=>String(p.color||'').toLowerCase())
+      .filter(Boolean)
+  );
+
+  const requested=String(profile.color||'').toLowerCase();
+  if(requested&&!used.has(requested))return profile;
+
+  const free=defaultColors.find(c=>!used.has(String(c).toLowerCase()));
+  if(free)profile.color=free;
+  return profile;
+}
 function renderLobby(){
   const list=$('#lobbyList');
   if(!list)return;
@@ -3856,7 +3904,7 @@ async function createRoomRecord(code,hostProfile){
   const row={
     code,
     host_id:netSelfId,
-    lobby:[cleanProfile({peerId:netSelfId,...hostProfile})],
+    lobby:[normalizeLobbyColor(cleanProfile({peerId:netSelfId,...hostProfile}),[])],
     game_state:null,
     started:false,
     updated_at:new Date().toISOString(),
@@ -4032,7 +4080,9 @@ async function handleNetMessage(data,senderPeerId){
         return;
       }
 
-      lobbyProfiles.push(cleanProfile({peerId:senderPeerId,...data.profile}));
+      const incoming=cleanProfile({peerId:senderPeerId,...data.profile});
+      normalizeLobbyColor(incoming,lobbyProfiles);
+      lobbyProfiles.push(incoming);
       broadcastLobby();
       return;
     }
@@ -4272,12 +4322,12 @@ async function createRoom(){
     await openNetworkRoom(roomCode,'host');
     if(savedHostId!==netSelfId){
       await getSupabaseClient().from('bc_rooms')
-        .update({host_id:netSelfId,lobby:[cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()})]})
+        .update({host_id:netSelfId,lobby:[normalizeLobbyColor(cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()}),[])]})
         .eq('code',roomCode);
     }
 
     localPlayerId=0;
-    lobbyProfiles=[cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()})];
+    lobbyProfiles=[normalizeLobbyColor(cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()}),[])];
 
     $('#roomCodeWrap').classList.remove('hidden');
     $('#roomCodeText').textContent=roomCode;
@@ -4368,7 +4418,7 @@ async function joinRoom(){
         players.some(p=>p.peerId===netSelfId);
       if(joined)return;
       setOnlineStatus(
-        'Комната есть в базе, но хост не подтвердил вход. Убедитесь, что вкладка хоста открыта и у обоих версия v30 READY.',
+        'Комната есть в базе, но хост не подтвердил вход. Убедитесь, что вкладка хоста открыта и у обоих версия v32 INTERVENTION.',
         'err'
       );
       $('#joinRoomBtn').disabled=false;
@@ -4537,7 +4587,7 @@ async function showEconomyTable(){
       return `<tr>
         <td><span class="tariff-name">${esc(pr.name)}</span><span class="tariff-small">Промышленность</span></td>
         <td>${money(pr.price)}</td>
-        <td>1 цех — 3% max баланса<br>2 — 6%<br>3 — 9%<br>4 — 12%<span class="tariff-small">процент считается от максимального баланса игрока, который наступил</span></td>
+        <td>1 цех — 3% текущего баланса<br>2 — 6%<br>3 — 9%<br>4 — 12%<span class="tariff-small">процент считается от текущего баланса игрока, который наступил</span></td>
         <td>Не улучшается · Мультиплеер запрещён</td>
         <td>${money(mortgageValue(pr))}<span class="tariff-small">выкуп ${money(redeemCost(pr))} · срок 5 ходов</span></td>
       </tr>`;
@@ -4574,7 +4624,7 @@ async function showRules(){
     <p><b>Экономика:</b> стартовый баланс — ${money(ECON.startCash)}. За пересечение Старта игрок получает ${money(ECON.passStart)}, а за <b>точное попадание на Старт</b> — ${money(ECON.exactStart)}.</p>
     <p><b>Обычные территории:</b> покупаются с уровнем 0★. Улучшение доступно только после сбора всей монополии. Застройка идёт <b>равномерно</b>: нельзя поставить 2★, пока каждая клетка этой монополии не имеет хотя бы 1★; нельзя поставить 3★, пока каждая не имеет хотя бы 2★, и так далее до 5★. Перед каждым броском разрешено одно улучшение; дубль обновляет этот лимит.</p>
     <p><b>Аренда:</b> на свободной клетке показывается только цена. После покупки показывается аренда. Полная монополия повышает базовую аренду примерно в 1,8 раза. Улучшения усилены: 1★ ×2,2; 2★ ×4; 3★ ×7; 4★ ×12; 5★ ×20 от базы полной монополии. Ранние группы дополнительно дешевле улучшать.</p>
-    <p><b>Красные поля:</b> это цеха и заводы. Они не улучшаются и не получают Мультиплеер. Если у владельца 1 красная клетка, соперник платит 3% от своего максимального баланса за матч; 2 клетки — 6%, 3 — 9%, 4 — 12%.</p>
+    <p><b>Красные поля:</b> это цеха и заводы. Они не улучшаются и не получают Мультиплеер. Если у владельца 1 красная клетка, соперник платит 3% от своего текущего баланса; 2 клетки — 6%, 3 — 9%, 4 — 12%.</p>
     <p><b>Кредит:</b> во время своего хода можно взять от <b>100 000 до 500 000 ₴</b> на срок от <b>2 до 10 своих ходов</b>. Чем дольше срок, тем выше процент. Второй кредит нельзя взять до погашения первого. Когда срок наступает, долг обязателен к оплате; если денег не хватает, можно снять звёзды и заложить имущество. Если после этого долг всё равно не погашен — игрок немедленно проигрывает.</p>
     <p><b>Управление клетками:</b> нажмите прямо на любую клетку поля, чтобы увидеть её аренду, уровень, залог и владельца. На своей клетке там же доступны улучшение, снятие звезды, залог, выкуп и переименование — без отдельного окна.</p><p><b>Торговля:</b> нажмите «Торговля», выберите игрока в панели и затем просто нажимайте по клеткам на поле. Ваши выбранные клетки подсвечиваются синим, клетки соперника — жёлтым. Деньги можно добавить в той же панели.</p>
     <p><b>Переименование:</b> после покупки владелец может один раз за всю партию переименовать клетку. Повторное переименование запрещено, как и название, которое уже используется другой клеткой.</p>
