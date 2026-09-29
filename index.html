@@ -844,7 +844,7 @@ button{border:0;cursor:pointer}
 <div id="modalOverlay" class="overlay hidden"><div id="modalDialog" class="dialog"><div id="modalTitle" class="dialog-head"></div><div id="modalBody" class="dialog-body"></div><div id="modalActions" class="dialog-actions"></div></div></div>
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
-    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v26 NETWORK</span></div>
+    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v27 RELAY</span></div>
     <div class="setup-sub"></div>
 
     <div class="mode-tabs">
@@ -863,7 +863,7 @@ button{border:0;cursor:pointer}
     </div>
 
     <div id="onlineSetup" class="hidden">
-      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v26-NETWORK</div>
+      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v27-RELAY</div>
 
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
@@ -891,6 +891,7 @@ button{border:0;cursor:pointer}
     </div>
   </div>
 </div>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 'use strict';
 
@@ -1003,8 +1004,8 @@ let players = [], current = 0, round = 1, started = false, phase = 'setup', game
 let networkMode='local'; // local | host | guest
 let roomCode='', localPlayerId=null;
 let lobbyProfiles=[];
-let netRoom=null, netAction=null, netSelfId='', hostPeerId='';
-let netModulePromise=null, joinRoomTimeout=null;
+let mqttClient=null, mqttTopicBase='', mqttHeartbeat=null;
+let netSelfId='', hostPeerId='', joinRoomTimeout=null;
 const pendingRemoteModals=new Map();
 let remoteModalSeq=1;
 let lastModalFormState={};
@@ -3749,21 +3750,31 @@ function setRoomUi(mode){
     $('#onlineStartBtn').classList.add('hidden');
   }
 }
-async function loadNetModule(){
-  if(!netModulePromise){
-    netModulePromise=import('https://cdn.jsdelivr.net/npm/trystero@0.25.4/+esm')
-      .catch(()=>import('https://esm.run/trystero@0.25.4'));
+function makeNetId(){
+  if(globalThis.crypto?.randomUUID){
+    return 'bc_'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
   }
-  return netModulePromise;
+  return 'bc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,12);
+}
+function mqttEnvelope(data,targetPeerId=null){
+  return JSON.stringify({
+    version:27,
+    sender:netSelfId,
+    target:targetPeerId||null,
+    ts:Date.now(),
+    data
+  });
 }
 function netSend(data,targetPeerId=null){
-  if(!netAction)return false;
+  if(!mqttClient||!mqttClient.connected||!mqttTopicBase)return false;
   try{
-    if(targetPeerId)netAction.send(data,{target:targetPeerId});
-    else netAction.send(data);
+    const topic=targetPeerId
+      ? `${mqttTopicBase}/to/${targetPeerId}`
+      : `${mqttTopicBase}/all`;
+    mqttClient.publish(topic,mqttEnvelope(data,targetPeerId),{qos:1,retain:false});
     return true;
   }catch(err){
-    console.warn('BLACK CIRCUIT network send error',err);
+    console.warn('BLACK CIRCUIT MQTT send error',err);
     return false;
   }
 }
@@ -3774,11 +3785,24 @@ function broadcastNet(data){
 function closeNetRoom(){
   clearTimeout(joinRoomTimeout);
   joinRoomTimeout=null;
-  if(netRoom){
-    try{netRoom.leave();}catch(e){}
+  if(mqttHeartbeat){
+    clearInterval(mqttHeartbeat);
+    mqttHeartbeat=null;
   }
-  netRoom=null;
-  netAction=null;
+  if(mqttClient){
+    try{
+      if(mqttClient.connected&&mqttTopicBase&&netSelfId){
+        mqttClient.publish(
+          `${mqttTopicBase}/all`,
+          mqttEnvelope({type:'peer_leave'}),
+          {qos:1,retain:false}
+        );
+      }
+    }catch(e){}
+    try{mqttClient.end(true);}catch(e){}
+  }
+  mqttClient=null;
+  mqttTopicBase='';
   netSelfId='';
   hostPeerId='';
 }
@@ -3883,6 +3907,17 @@ function broadcastLobby(){
 }
 async function handleNetMessage(data,senderPeerId){
   if(!data||typeof data!=='object'||!senderPeerId)return;
+
+  if(data.type==='peer_leave'){
+    if(networkMode==='host'){
+      const before=lobbyProfiles.length;
+      lobbyProfiles=lobbyProfiles.filter(p=>p.peerId!==senderPeerId);
+      if(lobbyProfiles.length!==before)broadcastLobby();
+    }else if(networkMode==='guest'&&senderPeerId===hostPeerId){
+      setOnlineStatus('Хост покинул комнату или потерял соединение.','err');
+    }
+    return;
+  }
 
   if(networkMode==='host'){
     if(data.type==='join'){
@@ -4050,73 +4085,116 @@ async function handleNetMessage(data,senderPeerId){
   }
 }
 async function openNetworkRoom(code,mode){
-  const mod=await loadNetModule();
+  if(typeof mqtt==='undefined'||typeof mqtt.connect!=='function'){
+    throw new Error('MQTT.js не загрузился. Обновите страницу и проверьте интернет.');
+  }
 
   networkMode=mode;
-  netSelfId=mod.selfId;
+  netSelfId=makeNetId();
+  mqttTopicBase=`black-circuit/v27/${String(code).toLowerCase()}`;
 
-  const config={
-    appId:'black-circuit-monopolyskibidi-v26',
-    password:code,
-    relayConfig:{redundancy:8},
-    trickleIce:true,
+  const brokerUrl='wss://broker.hivemq.com:8884/mqtt';
+  const allTopic=`${mqttTopicBase}/all`;
+  const directTopic=`${mqttTopicBase}/to/${netSelfId}`;
 
-    // TURN нужен, когда два браузера нашли друг друга через Nostr,
-    // но NAT/провайдер не позволяет установить прямое WebRTC-соединение.
-    // Trystero автоматически оставляет свои STUN-серверы и использует
-    // этот TURN только как резервный маршрут.
-    turnConfig:[
-      {
-        urls:[
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-          'turn:openrelay.metered.ca:443?transport=tcp'
+  const willPayload=JSON.stringify({
+    version:27,
+    sender:netSelfId,
+    target:null,
+    ts:Date.now(),
+    data:{type:'peer_leave'}
+  });
+
+  await new Promise((resolve,reject)=>{
+    let settled=false;
+    const timer=setTimeout(()=>{
+      if(settled)return;
+      settled=true;
+      try{mqttClient?.end(true);}catch(e){}
+      reject(new Error('MQTT-релей не ответил за 15 секунд.'));
+    },15000);
+
+    mqttClient=mqtt.connect(brokerUrl,{
+      clientId:`blackcircuit_v27_${netSelfId}`,
+      clean:true,
+      reconnectPeriod:2500,
+      connectTimeout:12000,
+      keepalive:20,
+      protocolVersion:4,
+      will:{
+        topic:allTopic,
+        payload:willPayload,
+        qos:1,
+        retain:false
+      }
+    });
+
+    mqttClient.on('connect',()=>{
+      mqttClient.subscribe(
+        [
+          {topic:allTopic,qos:1},
+          {topic:directTopic,qos:1}
         ],
-        username:'openrelayproject',
-        credential:'openrelayproject'
-      }
-    ]
-  };
-
-  netRoom=mod.joinRoom(
-    config,
-    code.toLowerCase(),
-    {
-      onJoinError:details=>{
-        const peerId=details?.peerId||'';
-        const err=details?.error?.message||details?.error||'WebRTC соединение не установлено';
-        console.warn('BLACK CIRCUIT join error',details);
-        if(networkMode==='guest'){
-          setOnlineStatus(
-            `Комната найдена, но WebRTC не установился даже через TURN: ${String(err)}. Убедитесь, что у ОБОИХ игроков открыта v26 NETWORK. Если ошибка повторяется, попробуйте мобильный интернет на одном из устройств.`,
-            'err'
-          );
+        err=>{
+          if(err){
+            if(!settled){
+              settled=true;
+              clearTimeout(timer);
+              reject(err);
+            }
+            return;
+          }
+          if(!settled){
+            settled=true;
+            clearTimeout(timer);
+            resolve();
+          }
         }
+      );
+    });
+
+    mqttClient.on('message',(topic,payload)=>{
+      try{
+        const env=JSON.parse(payload.toString());
+        if(!env||env.version!==27||!env.sender||env.sender===netSelfId)return;
+        if(env.target&&env.target!==netSelfId)return;
+        handleNetMessage(env.data,env.sender);
+      }catch(err){
+        console.warn('BLACK CIRCUIT MQTT parse error',err);
       }
-    }
-  );
+    });
 
-  netAction=netRoom.makeAction('bcmsg');
-  netAction.onMessage=(data,meta={})=>handleNetMessage(data,meta.peerId);
+    mqttClient.on('reconnect',()=>{
+      setOnlineStatus('Связь с сервером комнат восстанавливается…','busy');
+    });
 
-  netRoom.onPeerJoin=peerId=>{
-    if(networkMode==='host'){
-      netSend({type:'host_hello',roomCode},peerId);
-    }else if(networkMode==='guest'){
-      // Если первым встретили хоста — он ответит lobby_state.
-      netSend({type:'join',profile:profileFromOnlineInputs()},peerId);
-    }
-  };
+    mqttClient.on('offline',()=>{
+      if(networkMode!=='local'){
+        setOnlineStatus('Соединение с сервером комнат временно потеряно. Переподключаемся…','busy');
+      }
+    });
 
-  netRoom.onPeerLeave=peerId=>{
-    if(networkMode==='host'){
-      const before=lobbyProfiles.length;
-      lobbyProfiles=lobbyProfiles.filter(p=>p.peerId!==peerId);
-      if(lobbyProfiles.length!==before)broadcastLobby();
-    }else if(networkMode==='guest'&&peerId===hostPeerId){
-      setOnlineStatus('Хост покинул комнату или потерял соединение.','err');
-    }
-  };
+    mqttClient.on('error',err=>{
+      console.warn('BLACK CIRCUIT MQTT error',err);
+      if(!settled){
+        settled=true;
+        clearTimeout(timer);
+        reject(err);
+      }else if(networkMode!=='local'){
+        setOnlineStatus('Ошибка серверного соединения: '+(err?.message||'неизвестная ошибка'),'err');
+      }
+    });
+  });
+
+  if(mode==='host'){
+    // Новый гость всегда услышит хоста максимум через 1.5 секунды.
+    netSend({type:'host_hello',roomCode});
+    mqttHeartbeat=setInterval(()=>{
+      if(networkMode==='host'&&mqttClient?.connected){
+        netSend({type:'host_hello',roomCode});
+      }
+    },1500);
+  }
 }
 async function createRoom(){
   if(networkMode==='host'){
@@ -4130,7 +4208,7 @@ async function createRoom(){
   roomCode=generateRoomCode();
 
   $('#createRoomBtn').disabled=true;
-  setOnlineStatus('Запускаем онлайн-комнату…','busy');
+  setOnlineStatus('Подключаем комнату к серверному релею…','busy');
 
   try{
     await openNetworkRoom(roomCode,'host');
@@ -4156,7 +4234,7 @@ async function createRoom(){
     networkMode='local';
     $('#createRoomBtn').disabled=false;
     setOnlineStatus(
-      'Не удалось загрузить новый сетевой модуль. Проверьте интернет и обновите страницу. '+(err?.message||''),
+      'Не удалось подключиться к серверному релею. '+(err?.message||'Проверьте интернет.'),
       'err'
     );
   }
@@ -4183,14 +4261,13 @@ async function joinRoom(){
   hostPeerId='';
 
   $('#joinRoomBtn').disabled=true;
-  setOnlineStatus('v26: ищем комнату. У хоста должна быть открыта эта же версия v26 NETWORK…','busy');
+  setOnlineStatus('v26: ищем комнату. У хоста должна быть открыта эта же версия v27 RELAY…','busy');
 
   try{
     await openNetworkRoom(code,'guest');
     setRoomUi('guest');
 
-    // Trystero/Nostr не имеет центрального "списка комнат":
-    // успешным вход считаем только после lobby_state от настоящего хоста.
+    // Вход считаем успешным только после lobby_state от настоящего хоста.
     joinRoomTimeout=setTimeout(()=>{
       if(networkMode!=='guest'||hostPeerId)return;
       closeNetRoom();
@@ -4200,18 +4277,18 @@ async function joinRoom(){
       $('#showJoinBtn').disabled=false;
       $('#leaveRoomBtn').classList.add('hidden');
       setOnlineStatus(
-        'v26: хост с таким кодом не обнаружен за 35 секунд. Проверьте код и убедитесь, что у обоих игроков открыта версия v26 NETWORK.',
+        'v26: хост с таким кодом не обнаружен за 35 секунд. Проверьте код и убедитесь, что у обоих игроков открыта версия v27 RELAY.',
         'err'
       );
-    },35000);
+    },20000);
 
     // Если peer уже был найден до установки onPeerJoin, периодически повторяем объявление.
     let tries=0;
     const announce=()=>{
-      if(networkMode!=='guest'||hostPeerId||tries>=16)return;
+      if(networkMode!=='guest'||hostPeerId||tries>=20)return;
       tries++;
       netSend({type:'join',profile:profileFromOnlineInputs()});
-      setTimeout(announce,1500);
+      setTimeout(announce,900);
     };
     announce();
   }catch(err){
@@ -4416,7 +4493,7 @@ async function showRules(){
     <p><b>Управление клетками:</b> нажмите прямо на любую клетку поля, чтобы увидеть её аренду, уровень, залог и владельца. На своей клетке там же доступны улучшение, снятие звезды, залог, выкуп и переименование — без отдельного окна.</p><p><b>Торговля:</b> нажмите «Торговля», выберите игрока в панели и затем просто нажимайте по клеткам на поле. Ваши выбранные клетки подсвечиваются синим, клетки соперника — жёлтым. Деньги можно добавить в той же панели.</p>
     <p><b>Переименование:</b> после покупки владелец может один раз за всю партию переименовать клетку. Повторное переименование запрещено, как и название, которое уже используется другой клеткой.</p>
     <p><b>Таймер хода:</b> у каждого игрока есть <b>50 секунд</b> на ход. Таймер продолжается во время выбора покупки, казино, вмешательства, оплаты и других решений. Если время заканчивается, игра автоматически выполняет безопасное/обязательное действие и не позволяет задерживать партию бесконечно.</p>
-    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v26 поиск игроков идёт через распределённые Nostr-реле; если прямое соединение блокируется NAT, используется TURN-ретранслятор. Вкладка хоста должна оставаться открытой.</p>
+    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v27 игровые сообщения идут через MQTT-релей по защищённому WebSocket, поэтому NAT и прямой WebRTC больше не нужны. Вкладка хоста должна оставаться открытой.</p>
     <p><b>Дубли:</b> первый и второй подряд дают дополнительный бросок. Третий подряд немедленно отправляет в тюрьму.</p>
     <p><b>Тюрьма:</b> игрок имеет две попытки выбить дубль. После первой неудачи остаётся в тюрьме. После второй неудачи обязан заплатить ${money(ECON.bail)}, затем выходит и движется по результату второй попытки.</p>
     <p><b>2×:</b> временно удваивает доход выбранной вашей территории до первого попадания соперника.</p>
