@@ -844,7 +844,7 @@ button{border:0;cursor:pointer}
 <div id="modalOverlay" class="overlay hidden"><div id="modalDialog" class="dialog"><div id="modalTitle" class="dialog-head"></div><div id="modalBody" class="dialog-body"></div><div id="modalActions" class="dialog-actions"></div></div></div>
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
-    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v27 RELAY</span></div>
+    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v30 READY</span></div>
     <div class="setup-sub"></div>
 
     <div class="mode-tabs">
@@ -863,7 +863,7 @@ button{border:0;cursor:pointer}
     </div>
 
     <div id="onlineSetup" class="hidden">
-      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v27-RELAY</div>
+      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v30-READY</div>
 
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
@@ -891,7 +891,20 @@ button{border:0;cursor:pointer}
     </div>
   </div>
 </div>
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+/* =========================================================
+   SUPABASE НАСТРОЙКА
+   Вставьте сюда значения из Supabase:
+   Project Settings / Connect -> Project URL и Publishable key.
+
+   ВАЖНО:
+   - используйте только Publishable / anon key;
+   - НЕ вставляйте service_role / secret key.
+   ========================================================= */
+window.BLACK_CIRCUIT_SUPABASE_URL = 'https://qkdajovsnyhmzakanonr.supabase.co';
+window.BLACK_CIRCUIT_SUPABASE_KEY = 'sb_publishable_rUzpDTyqAH2qxqEJDBKYUw_yU-IzFw7';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
 
@@ -1004,7 +1017,7 @@ let players = [], current = 0, round = 1, started = false, phase = 'setup', game
 let networkMode='local'; // local | host | guest
 let roomCode='', localPlayerId=null;
 let lobbyProfiles=[];
-let mqttClient=null, mqttTopicBase='', mqttHeartbeat=null;
+let supabaseClient=null, supabaseChannel=null, supabaseHeartbeat=null;
 let netSelfId='', hostPeerId='', joinRoomTimeout=null;
 const pendingRemoteModals=new Map();
 let remoteModalSeq=1;
@@ -3756,25 +3769,58 @@ function makeNetId(){
   }
   return 'bc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,12);
 }
-function mqttEnvelope(data,targetPeerId=null){
-  return JSON.stringify({
-    version:27,
+function hasSupabaseConfig(){
+  const url=String(window.BLACK_CIRCUIT_SUPABASE_URL||'');
+  const key=String(window.BLACK_CIRCUIT_SUPABASE_KEY||'');
+  return /^https:\/\/.+\.supabase\.co$/i.test(url) &&
+    key.length>20 &&
+    !url.includes('PASTE_') &&
+    !key.includes('PASTE_');
+}
+function getSupabaseClient(){
+  if(supabaseClient)return supabaseClient;
+  if(!hasSupabaseConfig()){
+    throw new Error('Supabase не настроен. Вставьте Project URL и Publishable key прямо в начало HTML-файла.');
+  }
+  if(!window.supabase?.createClient){
+    throw new Error('Библиотека Supabase не загрузилась.');
+  }
+  supabaseClient=window.supabase.createClient(
+    window.BLACK_CIRCUIT_SUPABASE_URL,
+    window.BLACK_CIRCUIT_SUPABASE_KEY,
+    {
+      auth:{
+        persistSession:false,
+        autoRefreshToken:false,
+        detectSessionInUrl:false
+      },
+      realtime:{
+        params:{eventsPerSecond:20}
+      }
+    }
+  );
+  return supabaseClient;
+}
+function netEnvelope(data,targetPeerId=null){
+  return {
+    version:28,
     sender:netSelfId,
     target:targetPeerId||null,
     ts:Date.now(),
     data
-  });
+  };
 }
 function netSend(data,targetPeerId=null){
-  if(!mqttClient||!mqttClient.connected||!mqttTopicBase)return false;
+  if(!supabaseChannel)return false;
   try{
-    const topic=targetPeerId
-      ? `${mqttTopicBase}/to/${targetPeerId}`
-      : `${mqttTopicBase}/all`;
-    mqttClient.publish(topic,mqttEnvelope(data,targetPeerId),{qos:1,retain:false});
+    supabaseChannel.send({
+      type:'broadcast',
+      event:'bc',
+      payload:netEnvelope(data,targetPeerId)
+    }).catch(err=>console.warn('BLACK CIRCUIT Supabase send error',err));
     return true;
   }catch(err){
-    console.warn('BLACK CIRCUIT MQTT send error',err);
+    console.warn('BLACK CIRCUIT Supabase send error',err);
     return false;
   }
 }
@@ -3782,31 +3828,70 @@ function broadcastNet(data){
   if(networkMode!=='host')return;
   netSend(data);
 }
+async function persistRoomPatch(patch){
+  if(networkMode!=='host'||!roomCode||!hasSupabaseConfig())return;
+  try{
+    const sb=getSupabaseClient();
+    await sb.from('bc_rooms')
+      .update({...patch,updated_at:new Date().toISOString()})
+      .eq('code',roomCode);
+  }catch(err){
+    console.warn('BLACK CIRCUIT room persist error',err);
+  }
+}
+async function fetchRoom(code){
+  const sb=getSupabaseClient();
+  const {data,error}=await sb.from('bc_rooms')
+    .select('code,host_id,lobby,game_state,started,expires_at')
+    .eq('code',code)
+    .maybeSingle();
+  if(error)throw error;
+  if(!data)return null;
+  if(data.expires_at&&new Date(data.expires_at).getTime()<Date.now())return null;
+  return data;
+}
+async function createRoomRecord(code,hostProfile){
+  const sb=getSupabaseClient();
+  const expiresAt=new Date(Date.now()+12*60*60*1000).toISOString();
+  const row={
+    code,
+    host_id:netSelfId,
+    lobby:[cleanProfile({peerId:netSelfId,...hostProfile})],
+    game_state:null,
+    started:false,
+    updated_at:new Date().toISOString(),
+    expires_at:expiresAt
+  };
+  const {error}=await sb.from('bc_rooms').insert(row);
+  if(error)throw error;
+}
+async function deleteRoomRecord(){
+  if(networkMode!=='host'||!roomCode||!hasSupabaseConfig())return;
+  try{
+    const sb=getSupabaseClient();
+    await sb.from('bc_rooms').delete().eq('code',roomCode).eq('host_id',netSelfId);
+  }catch(err){
+    console.warn('BLACK CIRCUIT room delete error',err);
+  }
+}
 function closeNetRoom(){
   clearTimeout(joinRoomTimeout);
   joinRoomTimeout=null;
-  if(mqttHeartbeat){
-    clearInterval(mqttHeartbeat);
-    mqttHeartbeat=null;
+
+  if(supabaseHeartbeat){
+    clearInterval(supabaseHeartbeat);
+    supabaseHeartbeat=null;
   }
-  if(mqttClient){
-    try{
-      if(mqttClient.connected&&mqttTopicBase&&netSelfId){
-        mqttClient.publish(
-          `${mqttTopicBase}/all`,
-          mqttEnvelope({type:'peer_leave'}),
-          {qos:1,retain:false}
-        );
-      }
-    }catch(e){}
-    try{mqttClient.end(true);}catch(e){}
+
+  if(supabaseClient&&supabaseChannel){
+    try{supabaseClient.removeChannel(supabaseChannel);}catch(e){}
   }
-  mqttClient=null;
-  mqttTopicBase='';
+  supabaseChannel=null;
   netSelfId='';
   hostPeerId='';
 }
 function leaveOnlineRoom(){
+  if(networkMode==='host')deleteRoomRecord();
   closeNetRoom();
   pendingRemoteModals.clear();
   lobbyProfiles=[];
@@ -3844,7 +3929,11 @@ function serializeGameState(){
 function scheduleStateBroadcast(){
   if(networkMode!=='host'||!started)return;
   clearTimeout(syncTimer);
-  syncTimer=setTimeout(()=>broadcastNet({type:'state',state:serializeGameState()}),60);
+  syncTimer=setTimeout(()=>{
+    const state=serializeGameState();
+    broadcastNet({type:'state',state});
+    persistRoomPatch({game_state:state,started:true});
+  },80);
 }
 function applyGameState(state){
   if(!state)return;
@@ -3896,13 +3985,15 @@ function applyGameState(state){
 }
 function broadcastLobby(){
   if(networkMode!=='host')return;
+  const cleanLobby=lobbyProfiles.map(cleanProfile);
   const payload={
     type:'lobby_state',
     roomCode,
     hostPeerId:netSelfId,
-    profiles:lobbyProfiles.map(cleanProfile)
+    profiles:cleanLobby
   };
   broadcastNet(payload);
+  persistRoomPatch({lobby:cleanLobby});
   renderLobby();
 }
 async function handleNetMessage(data,senderPeerId){
@@ -3983,11 +4074,14 @@ async function handleNetMessage(data,senderPeerId){
   }
 
   if(data.type==='lobby_state'){
-    clearTimeout(joinRoomTimeout);
-    joinRoomTimeout=null;
     hostPeerId=data.hostPeerId||senderPeerId;
     lobbyProfiles=(data.profiles||[]).map(cleanProfile);
     roomCode=data.roomCode||roomCode;
+    const me=lobbyProfiles.find(p=>p.peerId===netSelfId);
+    if(me){
+      clearTimeout(joinRoomTimeout);
+      joinRoomTimeout=null;
+    }
     $('#roomCodeWrap').classList.remove('hidden');
     $('#roomCodeText').textContent=roomCode;
     renderLobby();
@@ -4085,115 +4179,60 @@ async function handleNetMessage(data,senderPeerId){
   }
 }
 async function openNetworkRoom(code,mode){
-  if(typeof mqtt==='undefined'||typeof mqtt.connect!=='function'){
-    throw new Error('MQTT.js не загрузился. Обновите страницу и проверьте интернет.');
-  }
-
+  const sb=getSupabaseClient();
   networkMode=mode;
   netSelfId=makeNetId();
-  mqttTopicBase=`black-circuit/v27/${String(code).toLowerCase()}`;
 
-  const brokerUrl='wss://broker.hivemq.com:8884/mqtt';
-  const allTopic=`${mqttTopicBase}/all`;
-  const directTopic=`${mqttTopicBase}/to/${netSelfId}`;
-
-  const willPayload=JSON.stringify({
-    version:27,
-    sender:netSelfId,
-    target:null,
-    ts:Date.now(),
-    data:{type:'peer_leave'}
+  const topic=`black-circuit-v29-${String(code).toLowerCase()}`;
+  supabaseChannel=sb.channel(topic,{
+    config:{
+      broadcast:{self:false,ack:true}
+    }
   });
+
+  supabaseChannel.on(
+    'broadcast',
+    {event:'bc'},
+    ({payload})=>{
+      try{
+        const env=payload;
+        if(!env||env.version!==28||!env.sender||env.sender===netSelfId)return;
+        if(env.target&&env.target!==netSelfId)return;
+        handleNetMessage(env.data,env.sender);
+      }catch(err){
+        console.warn('BLACK CIRCUIT Supabase receive error',err);
+      }
+    }
+  );
 
   await new Promise((resolve,reject)=>{
     let settled=false;
     const timer=setTimeout(()=>{
       if(settled)return;
       settled=true;
-      try{mqttClient?.end(true);}catch(e){}
-      reject(new Error('MQTT-релей не ответил за 15 секунд.'));
+      reject(new Error('Supabase Realtime не подключился за 15 секунд.'));
     },15000);
 
-    mqttClient=mqtt.connect(brokerUrl,{
-      clientId:`blackcircuit_v27_${netSelfId}`,
-      clean:true,
-      reconnectPeriod:2500,
-      connectTimeout:12000,
-      keepalive:20,
-      protocolVersion:4,
-      will:{
-        topic:allTopic,
-        payload:willPayload,
-        qos:1,
-        retain:false
-      }
-    });
-
-    mqttClient.on('connect',()=>{
-      mqttClient.subscribe(
-        [
-          {topic:allTopic,qos:1},
-          {topic:directTopic,qos:1}
-        ],
-        err=>{
-          if(err){
-            if(!settled){
-              settled=true;
-              clearTimeout(timer);
-              reject(err);
-            }
-            return;
-          }
-          if(!settled){
-            settled=true;
-            clearTimeout(timer);
-            resolve();
-          }
-        }
-      );
-    });
-
-    mqttClient.on('message',(topic,payload)=>{
-      try{
-        const env=JSON.parse(payload.toString());
-        if(!env||env.version!==27||!env.sender||env.sender===netSelfId)return;
-        if(env.target&&env.target!==netSelfId)return;
-        handleNetMessage(env.data,env.sender);
-      }catch(err){
-        console.warn('BLACK CIRCUIT MQTT parse error',err);
-      }
-    });
-
-    mqttClient.on('reconnect',()=>{
-      setOnlineStatus('Связь с сервером комнат восстанавливается…','busy');
-    });
-
-    mqttClient.on('offline',()=>{
-      if(networkMode!=='local'){
-        setOnlineStatus('Соединение с сервером комнат временно потеряно. Переподключаемся…','busy');
-      }
-    });
-
-    mqttClient.on('error',err=>{
-      console.warn('BLACK CIRCUIT MQTT error',err);
-      if(!settled){
+    supabaseChannel.subscribe(status=>{
+      if(status==='SUBSCRIBED'&&!settled){
         settled=true;
         clearTimeout(timer);
-        reject(err);
-      }else if(networkMode!=='local'){
-        setOnlineStatus('Ошибка серверного соединения: '+(err?.message||'неизвестная ошибка'),'err');
+        resolve();
+      }else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!settled){
+        settled=true;
+        clearTimeout(timer);
+        reject(new Error('Ошибка подключения к Supabase Realtime: '+status));
       }
     });
   });
 
   if(mode==='host'){
-    // Новый гость всегда услышит хоста максимум через 1.5 секунды.
     netSend({type:'host_hello',roomCode});
-    mqttHeartbeat=setInterval(()=>{
-      if(networkMode==='host'&&mqttClient?.connected){
+    supabaseHeartbeat=setInterval(()=>{
+      if(networkMode==='host'&&supabaseChannel){
         netSend({type:'host_hello',roomCode});
       }
-    },1500);
+    },1800);
   }
 }
 async function createRoom(){
@@ -4201,22 +4240,44 @@ async function createRoom(){
     setOnlineStatus('Комната уже создана. Передайте показанный код другу.','busy');
     return;
   }
+  if(!hasSupabaseConfig()){
+    setOnlineStatus('Сначала вставьте Project URL и Publishable key Supabase прямо в начало HTML-файла.','err');
+    return;
+  }
 
   closeNetRoom();
   pendingRemoteModals.clear();
   lobbyProfiles=[];
-  roomCode=generateRoomCode();
-
   $('#createRoomBtn').disabled=true;
-  setOnlineStatus('Подключаем комнату к серверному релею…','busy');
+  setOnlineStatus('Создаём комнату в базе данных…','busy');
 
   try{
+    let created=false,lastErr=null;
+    for(let attempt=0;attempt<6&&!created;attempt++){
+      roomCode=generateRoomCode();
+      networkMode='host';
+      netSelfId=makeNetId();
+      try{
+        await createRoomRecord(roomCode,profileFromOnlineInputs());
+        created=true;
+      }catch(err){
+        lastErr=err;
+        if(String(err?.code||'')!=='23505')throw err;
+      }
+    }
+    if(!created)throw lastErr||new Error('Не удалось подобрать свободный код.');
+
+    // openNetworkRoom creates its own netSelfId, but DB row must keep same host id.
+    const savedHostId=netSelfId;
     await openNetworkRoom(roomCode,'host');
+    if(savedHostId!==netSelfId){
+      await getSupabaseClient().from('bc_rooms')
+        .update({host_id:netSelfId,lobby:[cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()})]})
+        .eq('code',roomCode);
+    }
 
     localPlayerId=0;
-    lobbyProfiles=[
-      cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()})
-    ];
+    lobbyProfiles=[cleanProfile({peerId:netSelfId,...profileFromOnlineInputs()})];
 
     $('#roomCodeWrap').classList.remove('hidden');
     $('#roomCodeText').textContent=roomCode;
@@ -4225,8 +4286,9 @@ async function createRoom(){
 
     renderLobby();
     setRoomUi('host');
+    broadcastLobby();
     setOnlineStatus(
-      `Комната ${roomCode} создана. Передайте код другу. Друг нажимает только «Войти в комнату».`,
+      `Комната ${roomCode} создана в базе Supabase. Передайте код другу.`,
       'ok'
     );
   }catch(err){
@@ -4234,7 +4296,7 @@ async function createRoom(){
     networkMode='local';
     $('#createRoomBtn').disabled=false;
     setOnlineStatus(
-      'Не удалось подключиться к серверному релею. '+(err?.message||'Проверьте интернет.'),
+      'Не удалось создать комнату в Supabase: '+(err?.message||'проверьте Supabase-настройку в начале HTML и SQL.'),
       'err'
     );
   }
@@ -4245,6 +4307,10 @@ async function joinRoom(){
       'Вы уже хост. Чтобы войти в чужую комнату, сначала нажмите «Покинуть комнату».',
       'err'
     );
+    return;
+  }
+  if(!hasSupabaseConfig()){
+    setOnlineStatus('Сначала вставьте Project URL и Publishable key Supabase прямо в начало HTML-файла.','err');
     return;
   }
 
@@ -4261,44 +4327,62 @@ async function joinRoom(){
   hostPeerId='';
 
   $('#joinRoomBtn').disabled=true;
-  setOnlineStatus('v26: ищем комнату. У хоста должна быть открыта эта же версия v27 RELAY…','busy');
+  setOnlineStatus('Проверяем комнату в базе данных…','busy');
 
   try{
+    const room=await fetchRoom(code);
+    if(!room){
+      throw new Error('Комната не найдена или уже истекла.');
+    }
+
     await openNetworkRoom(code,'guest');
     setRoomUi('guest');
 
-    // Вход считаем успешным только после lobby_state от настоящего хоста.
-    joinRoomTimeout=setTimeout(()=>{
-      if(networkMode!=='guest'||hostPeerId)return;
-      closeNetRoom();
-      networkMode='local';
-      $('#joinRoomBtn').disabled=false;
-      $('#createRoomBtn').disabled=false;
-      $('#showJoinBtn').disabled=false;
-      $('#leaveRoomBtn').classList.add('hidden');
-      setOnlineStatus(
-        'v26: хост с таким кодом не обнаружен за 35 секунд. Проверьте код и убедитесь, что у обоих игроков открыта версия v27 RELAY.',
-        'err'
-      );
-    },20000);
+    // DB gives immediate room state even before host replies.
+    hostPeerId=room.host_id||'';
+    lobbyProfiles=(room.lobby||[]).map(cleanProfile);
 
-    // Если peer уже был найден до установки onPeerJoin, периодически повторяем объявление.
+    $('#roomCodeWrap').classList.remove('hidden');
+    $('#roomCodeText').textContent=code;
+    renderLobby();
+
+    if(room.started&&room.game_state){
+      applyGameState(room.game_state);
+      localPlayerId=players.find(p=>p.peerId===netSelfId)?.id ?? null;
+    }
+
+    // Ask host to add this guest to the live lobby.
     let tries=0;
     const announce=()=>{
-      if(networkMode!=='guest'||hostPeerId||tries>=20)return;
+      if(networkMode!=='guest'||tries>=20)return;
       tries++;
-      netSend({type:'join',profile:profileFromOnlineInputs()});
-      setTimeout(announce,900);
+      netSend({type:'join',profile:profileFromOnlineInputs()},hostPeerId||null);
+      if(!players.find(p=>p.peerId===netSelfId)&&!lobbyProfiles.find(p=>p.peerId===netSelfId)){
+        setTimeout(announce,900);
+      }
     };
     announce();
+
+    joinRoomTimeout=setTimeout(()=>{
+      const joined=lobbyProfiles.some(p=>p.peerId===netSelfId) ||
+        players.some(p=>p.peerId===netSelfId);
+      if(joined)return;
+      setOnlineStatus(
+        'Комната есть в базе, но хост не подтвердил вход. Убедитесь, что вкладка хоста открыта и у обоих версия v30 READY.',
+        'err'
+      );
+      $('#joinRoomBtn').disabled=false;
+    },20000);
+
   }catch(err){
     closeNetRoom();
     networkMode='local';
     $('#joinRoomBtn').disabled=false;
     $('#createRoomBtn').disabled=false;
     $('#showJoinBtn').disabled=false;
+    $('#leaveRoomBtn').classList.add('hidden');
     setOnlineStatus(
-      'Не удалось запустить сетевое подключение. '+(err?.message||'Проверьте интернет.'),
+      'Не удалось войти: '+(err?.message||'проверьте Supabase-настройку в начале HTML и подключение к базе.'),
       'err'
     );
   }
@@ -4342,7 +4426,9 @@ function startOnlineGame(){
   renderPlayers();
   addLog(`Онлайн-матч начался. Комната ${roomCode}. Стартовый капитал: ${money(ECON.startCash)}.`);
 
-  broadcastNet({type:'game_start',state:serializeGameState()});
+  const initialState=serializeGameState();
+  broadcastNet({type:'game_start',state:initialState});
+  persistRoomPatch({started:true,game_state:initialState,lobby:lobbyProfiles.map(cleanProfile)});
   startTurn();
 }
 async function handleHostCommand(senderPeerId,cmd,payload){
@@ -4493,7 +4579,7 @@ async function showRules(){
     <p><b>Управление клетками:</b> нажмите прямо на любую клетку поля, чтобы увидеть её аренду, уровень, залог и владельца. На своей клетке там же доступны улучшение, снятие звезды, залог, выкуп и переименование — без отдельного окна.</p><p><b>Торговля:</b> нажмите «Торговля», выберите игрока в панели и затем просто нажимайте по клеткам на поле. Ваши выбранные клетки подсвечиваются синим, клетки соперника — жёлтым. Деньги можно добавить в той же панели.</p>
     <p><b>Переименование:</b> после покупки владелец может один раз за всю партию переименовать клетку. Повторное переименование запрещено, как и название, которое уже используется другой клеткой.</p>
     <p><b>Таймер хода:</b> у каждого игрока есть <b>50 секунд</b> на ход. Таймер продолжается во время выбора покупки, казино, вмешательства, оплаты и других решений. Если время заканчивается, игра автоматически выполняет безопасное/обязательное действие и не позволяет задерживать партию бесконечно.</p>
-    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v27 игровые сообщения идут через MQTT-релей по защищённому WebSocket, поэтому NAT и прямой WebRTC больше не нужны. Вкладка хоста должна оставаться открытой.</p>
+    <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v29 комнаты хранятся в базе Supabase, а синхронизация идёт через Supabase Realtime. Прямое соединение между игроками не требуется. Вкладка хоста должна оставаться открытой.</p>
     <p><b>Дубли:</b> первый и второй подряд дают дополнительный бросок. Третий подряд немедленно отправляет в тюрьму.</p>
     <p><b>Тюрьма:</b> игрок имеет две попытки выбить дубль. После первой неудачи остаётся в тюрьме. После второй неудачи обязан заплатить ${money(ECON.bail)}, затем выходит и движется по результату второй попытки.</p>
     <p><b>2×:</b> временно удваивает доход выбранной вашей территории до первого попадания соперника.</p>
