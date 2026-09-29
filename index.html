@@ -9,7 +9,7 @@
   --bg:#07080c;--panel:#101218;--panel2:#151823;--line:#2a2e3a;--text:#f3f5fb;--muted:#8e96aa;
   --purple:#a855f7;--gold:#f6c85f;--danger:#ff4d67;--green:#46d988;--cyan:#45d7ff;
 }
-*{box-sizing:border-box}html,body{height:100%;margin:0;background:radial-gradient(circle at 50% 10%,#151126 0,#08090d 45%,#050609 100%);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;overflow:hidden}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:#262d35;color:#eef4ff;font-family:Inter,Segoe UI,Arial,sans-serif;overflow:hidden}
 button,input,select{font:inherit}
 button{border:0;cursor:pointer}
 .hidden{display:none!important}
@@ -26,7 +26,7 @@ button{border:0;cursor:pointer}
 .player-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}.stat{background:#151923;border:1px solid #242a38;padding:7px 8px;border-radius:9px}.stat b{display:block;font-size:13px}.stat span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.status-line{font-size:10px;color:#e8d596;margin-top:7px;min-height:14px}
 .board-wrap{display:grid;place-items:center;min-width:0;min-height:0;position:relative}
 #board{position:relative;width:min(72vw,calc((100vh - 100px)*1.06));max-width:900px;aspect-ratio:1.06/1;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);background:#05060a;border:3px solid #030405;border-radius:8px;box-shadow:0 30px 90px rgba(0,0,0,.5),0 0 0 1px #333845;overflow:hidden}
-.cell{position:relative;min-width:0;min-height:0;border:1px solid #343845;background:#07080b;color:#f5f7fb;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden}.cell.property{background:linear-gradient(145deg,#111319,#050607 70%)}.cell.property::before{content:"";position:absolute;left:0;top:0;right:0;height:5px;background:var(--accent);box-shadow:0 0 15px color-mix(in srgb,var(--accent) 58%,transparent)}.cell.property.owned{box-shadow:inset 0 0 0 2px var(--owner),inset 0 -8px 18px color-mix(in srgb,var(--owner) 18%,transparent)}.cell.property.boosted{animation:boostGlow 1.25s ease-in-out infinite alternate}.cell.property.boosted::after{content:"×2";position:absolute;right:2px;top:2px;color:#171007;background:var(--gold);font-weight:1000;border-radius:5px;padding:1px 3px;font-size:8px;line-height:1;box-shadow:0 0 10px rgba(246,200,95,.75)}
+.cell{position:relative;min-width:0;min-height:0;border:1px solid #343845;background:#07080b;color:#f5f7fb;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden}.cell.property{background:linear-gradient(145deg,#111319,#050607 70%)}.cell.property::before{content:"";position:absolute;left:0;top:0;right:0;height:5px;background:var(--accent);box-shadow:0 0 15px color-mix(in srgb,var(--accent) 58%,transparent)}.cell.property.owned{box-shadow:inset 0 0 0 2px var(--owner),inset 0 -8px 18px color-mix(in srgb,var(--owner) 18%,transparent)}.cell.property.boosted{animation:boostGlow 1.25s ease-in-out infinite alternate}.cell.property.boosted::after{content:attr(data-boost);position:absolute;right:2px;top:2px;color:#171007;background:var(--gold);font-weight:1000;border-radius:5px;padding:1px 3px;font-size:8px;line-height:1;box-shadow:0 0 10px rgba(246,200,95,.75)}
 @keyframes boostGlow{from{filter:drop-shadow(0 0 0 rgba(246,200,95,0))}to{filter:drop-shadow(0 0 9px rgba(246,200,95,.65))}}
 .cell.special{background:radial-gradient(circle at 50% 40%,#421a61 0,#1a0d26 62%,#0c0811 100%);border-color:#7846a6;box-shadow:inset 0 0 25px rgba(168,85,247,.15)}.cell.risk{background:radial-gradient(circle at 50% 35%,#5c2f19 0,#21150f 64%,#0c0908 100%);border-color:#a35f33}.special-icon{font-size:20px;font-weight:1000;color:#d8b4fe;text-shadow:0 0 13px rgba(168,85,247,.8)}.risk .special-icon{color:#ffc08f;text-shadow:0 0 13px rgba(255,137,67,.55)}
 .cell-name{font-weight:800;font-size:clamp(8px,.72vw,11px);line-height:1.05;max-width:100%;word-break:break-word}.cell-price{font-size:clamp(7px,.62vw,9px);color:#aab2c3;margin-top:3px}.stars{position:absolute;left:3px;right:3px;bottom:3px;font-size:8px;color:var(--gold);letter-spacing:-1px;white-space:nowrap}.owner-dot{position:absolute;bottom:0;left:0;right:0;height:4px;background:var(--owner);box-shadow:0 0 9px var(--owner)}
@@ -91,7 +91,7 @@ button{border:0;cursor:pointer}
 .cell.property.boosted,.cell.monopoly.boosted{animation:boostGlow 1.25s ease-in-out infinite alternate}
 .cell.property.fullset{box-shadow:inset 0 0 0 2px var(--owner),0 0 20px color-mix(in srgb,var(--accent) 48%,transparent)}
 .trade-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.trade-side{border:1px solid #2d3444;background:#0f131b;border-radius:14px;padding:11px}.trade-side h4{margin:0 0 8px;color:#fff}.trade-list{display:flex;flex-direction:column;gap:7px;max-height:250px;overflow:auto}.trade-item{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid #2a3140;border-radius:10px;background:#141923}.trade-item input{margin-top:3px}.trade-item b{display:block;font-size:12px}.trade-item small{display:block;color:#8e98ac;font-size:10px;margin-top:2px}.trade-money{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.trade-money label{font-size:11px;color:#9ba5b8}.trade-money input{width:100%;margin-top:5px}.trade-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.trade-summary>div{background:#121722;border:1px solid #2a3241;border-radius:12px;padding:10px}.trade-summary h4{margin:0 0 7px;color:#fff}@media(max-width:720px){.trade-columns,.trade-summary{grid-template-columns:1fr}}
-.cell.monopoly.boosted::after{content:"×2";position:absolute;right:2px;top:2px;color:#171007;background:var(--gold);font-weight:1000;border-radius:5px;padding:1px 3px;font-size:8px;line-height:1;box-shadow:0 0 10px rgba(246,200,95,.75)}
+.cell.monopoly.boosted::after{content:attr(data-boost);position:absolute;right:2px;top:2px;color:#171007;background:var(--gold);font-weight:1000;border-radius:5px;padding:1px 3px;font-size:8px;line-height:1;box-shadow:0 0 10px rgba(246,200,95,.75)}
 .log-item{font-size:12px;line-height:1.45;padding:9px}
 .eco span{font-size:10px}.eco b{font-size:13px}
 .turn-status{font-size:clamp(10px,.85vw,13px)}
@@ -129,7 +129,7 @@ button{border:0;cursor:pointer}
 .mode-tab{padding:12px;border-radius:12px;background:#11151d;color:#aab3c5;border:1px solid #303747;font-weight:900}
 .mode-tab.active{background:linear-gradient(90deg,#6d28d9,#9333ea);color:#fff;border-color:#a855f7;box-shadow:0 0 24px rgba(168,85,247,.2)}
 .online-box{border:1px solid #303746;background:#0d1118;border-radius:16px;padding:14px;margin-top:12px}
-.online-profile{display:grid;grid-template-columns:1.5fr .65fr 64px;gap:8px}
+.online-profile{display:grid;grid-template-columns:1.5fr .65fr 150px;gap:8px;align-items:stretch}
 .room-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .room-code-wrap{margin-top:13px;padding:13px;border:1px solid #33405a;border-radius:13px;background:#101722;text-align:center}
 .room-code{font-size:28px;font-weight:1000;letter-spacing:.18em;color:#d8b4fe}
@@ -154,7 +154,7 @@ button{border:0;cursor:pointer}
   box-shadow:inset 0 0 0 3px rgba(245,158,11,.58)!important;
 }
 .cell.mortgaged::after{
-  content:"ЗАЛОЖЕНО";
+  content:attr(data-mortgage-left);
   position:absolute;
   left:6px;right:6px;bottom:5px;
   padding:3px 4px;
@@ -804,6 +804,524 @@ button{border:0;cursor:pointer}
   padding:4px 7px!important;
 }
 
+
+/* ===== v33: большой выбор цветов в онлайн-лобби ===== */
+.online-color-picker{position:relative;min-width:0}
+.color-pick-btn{
+  width:100%;height:100%;min-height:42px;
+  display:flex;align-items:center;gap:9px;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid #303748;
+  background:#0c0f15;
+  color:#eef1f7;
+  font:inherit;
+  font-weight:850;
+  cursor:pointer;
+}
+.color-pick-btn:hover{border-color:#4b5872;background:#111621}
+.color-pick-swatch{
+  width:22px;height:22px;border-radius:7px;
+  background:var(--pick);
+  flex:0 0 auto;
+  box-shadow:0 0 0 2px rgba(255,255,255,.13),0 0 13px color-mix(in srgb,var(--pick) 55%,transparent);
+}
+.color-pick-label{flex:1;text-align:left;font-size:12px}
+.color-pick-arrow{font-size:14px;color:#8f9bb0}
+.color-palette{
+  position:absolute;
+  right:0;top:calc(100% + 7px);
+  width:272px;
+  padding:10px;
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:7px;
+  background:#0b0f16;
+  border:1px solid #364158;
+  border-radius:13px;
+  box-shadow:0 18px 55px rgba(0,0,0,.65);
+  z-index:80;
+}
+.color-option{
+  position:relative;
+  aspect-ratio:1;
+  min-width:0;
+  border-radius:9px;
+  border:2px solid rgba(255,255,255,.13);
+  background:var(--c);
+  cursor:pointer;
+  box-shadow:inset 0 0 8px rgba(255,255,255,.08),0 5px 13px rgba(0,0,0,.24);
+  transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;
+}
+.color-option:hover{transform:scale(1.08);border-color:#fff}
+.color-option.selected{
+  border-color:#fff;
+  box-shadow:0 0 0 2px #0b0f16,0 0 0 4px var(--c),0 0 16px var(--c);
+}
+.color-option.selected::after{
+  content:"✓";
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  color:white;font-size:14px;font-weight:1000;
+  text-shadow:0 2px 5px rgba(0,0,0,.7);
+}
+@media(max-width:900px){
+  .online-profile{grid-template-columns:1fr!important}
+  .color-palette{left:0;right:auto;width:min(310px,88vw)}
+}
+
+
+/* ===== v35: white board cells + dark slate page background ===== */
+.board-wrap,.board-shell,.game-shell{background:transparent!important}
+.cell,
+.cell.property:not(.owned),
+.cell.monopoly:not(.owned),
+.cell.bonus,
+.cell.special:not(.share-owned),
+.cell.risk:not(.share-owned){
+  background:#ffffff!important;
+  color:#111827!important;
+  border-color:#202833!important;
+  box-shadow:none!important;
+}
+.cell-name,
+.cell-price,
+.cell-rent,
+.special-icon{
+  color:#111827!important;
+  text-shadow:none!important;
+}
+.cell.bonus .special-icon{color:#0f7ea8!important}
+.cell.special .special-icon{color:#7c3aed!important}
+.cell.risk .special-icon{color:#b45309!important}
+.cell.monopoly::before{
+  background:#111827!important;
+  box-shadow:none!important;
+}
+.cell.property.fullset:not(.owned){
+  box-shadow:inset 0 0 0 2px #111827!important;
+}
+
+
+/* ===== v38: крупные названия клеток по центру ===== */
+.cell-name{
+  width:96%!important;
+  max-width:96%!important;
+  margin:0!important;
+  padding:0 2px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  font-size:clamp(11px,1vw,16px)!important;
+  line-height:1.02!important;
+  font-weight:1000!important;
+  letter-spacing:-.01em!important;
+  word-break:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.cell.property .cell-name,
+.cell.monopoly .cell-name{
+  margin-top:0!important;
+}
+.cell-price,.cell-rent{
+  margin-top:5px!important;
+  font-size:clamp(9px,.72vw,12px)!important;
+  line-height:1!important;
+}
+/* звёзды в правом верхнем углу, чтобы не мешали названию и цене */
+.stars{
+  top:4px!important;
+  right:4px!important;
+  left:auto!important;
+  bottom:auto!important;
+  transform:none!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:2px 4px!important;
+  font-size:clamp(8px,.68vw,11px)!important;
+  line-height:1!important;
+  letter-spacing:0!important;
+}
+
+
+/* ===== v39: полосы к внешнему краю, бонусы чёрные, спецклетки зелёные ===== */
+
+/* Обычные цветные полосы групп */
+.cell.property::before,
+.cell.monopoly::before{
+  content:""!important;
+  position:absolute!important;
+  z-index:2!important;
+  box-shadow:none!important;
+}
+
+/* верхний ряд */
+.cell.edge-top.property::before,
+.cell.edge-top.monopoly::before{
+  left:0!important; right:0!important; top:0!important; bottom:auto!important;
+  width:auto!important; height:6px!important;
+}
+
+/* правый ряд */
+.cell.edge-right.property::before,
+.cell.edge-right.monopoly::before{
+  top:0!important; bottom:0!important; right:0!important; left:auto!important;
+  width:6px!important; height:auto!important;
+}
+
+/* нижний ряд */
+.cell.edge-bottom.property::before,
+.cell.edge-bottom.monopoly::before{
+  left:0!important; right:0!important; bottom:0!important; top:auto!important;
+  width:auto!important; height:6px!important;
+}
+
+/* левый ряд */
+.cell.edge-left.property::before,
+.cell.edge-left.monopoly::before{
+  top:0!important; bottom:0!important; left:0!important; right:auto!important;
+  width:6px!important; height:auto!important;
+}
+
+/* Для обычных территорий цвет полосы = цвет группы */
+.cell.property::before{
+  background:var(--accent)!important;
+}
+
+/* Для промышленных клеток оставляем тёмно-красную полоску */
+.cell.monopoly::before{
+  background:#a00024!important;
+}
+
+/* Бонусы — чёрные */
+.cell.bonus{
+  background:#050607!important;
+  color:#ffffff!important;
+  border-color:#2a313b!important;
+}
+.cell.bonus .special-icon{
+  color:#ffffff!important;
+  text-shadow:none!important;
+}
+.cell.bonus .cell-price{
+  color:#c7ced8!important;
+}
+
+/* Спецклетки, включая казино — зелёные */
+.cell.special,
+.cell.risk{
+  background:#1f8f55!important;
+  color:#ffffff!important;
+  border-color:#43c77d!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)!important;
+}
+.cell.special .special-icon,
+.cell.risk .special-icon,
+.cell.special .cell-price,
+.cell.risk .cell-price{
+  color:#ffffff!important;
+  text-shadow:none!important;
+}
+
+/* Если у тюрьмы/казино есть доля, всё равно сохраняем зелёный фон,
+   а цвет владельца остаётся только рамкой */
+.cell.special.share-owned,
+.cell.risk.share-owned{
+  background:#1f8f55!important;
+  color:#ffffff!important;
+  border-color:var(--share-owner,#43c77d)!important;
+  box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--share-owner,#43c77d) 70%,#ffffff 30%)!important;
+}
+
+
+/* ===== v40: fix text visibility on green special cells ===== */
+.cell.cell.special .special-icon,
+.cell.cell.risk .special-icon,
+.cell.cell.special.share-owned .special-icon,
+.cell.cell.risk.share-owned .special-icon{
+  position:relative!important;
+  z-index:10!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-width:100%!important;
+  padding:0 2px!important;
+  margin:0!important;
+  color:#ffffff!important;
+  opacity:1!important;
+  visibility:visible!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.38)!important;
+  font-size:clamp(11px,1vw,15px)!important;
+  font-weight:1000!important;
+  line-height:.95!important;
+  letter-spacing:0!important;
+  text-align:center!important;
+  white-space:normal!important;
+  word-break:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.cell.cell.special .cell-price,
+.cell.cell.risk .cell-price,
+.cell.cell.special.share-owned .cell-price,
+.cell.cell.risk.share-owned .cell-price{
+  position:relative!important;
+  z-index:10!important;
+  color:#ffffff!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+
+
+/* ===== v41: green special cells with black borders ===== */
+.cell.special,
+.cell.risk,
+.cell.special.share-owned,
+.cell.risk.share-owned{
+  background:#1f8f55!important;
+  color:#ffffff!important;
+  border:2px solid #000000!important;
+  border-color:#000000!important;
+  box-shadow:none!important;
+}
+.cell.special::before,
+.cell.risk::before{
+  display:none!important;
+}
+
+/* Keep text clearly visible on all green special cells */
+.cell.special .special-icon,
+.cell.risk .special-icon,
+.cell.special.share-owned .special-icon,
+.cell.risk.share-owned .special-icon{
+  color:#ffffff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.35)!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+.cell.special .cell-price,
+.cell.risk .cell-price,
+.cell.special.share-owned .cell-price,
+.cell.risk.share-owned .cell-price{
+  color:#ffffff!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+
+/* Multiplier / Start / Jail / Intervention / Casino green and framed in black */
+.cell[id^="cell-"].special{
+  background:#1f8f55!important;
+  border:2px solid #000!important;
+}
+
+/* If a special cell has owner share, only a subtle inner accent, but black outer edge stays */
+.cell.special.share-owned,
+.cell.risk.share-owned{
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.18)!important;
+}
+
+
+/* ===== v42: thicker outer black edge for green special cells ===== */
+.cell.special,
+.cell.risk,
+.cell.special.share-owned,
+.cell.risk.share-owned{
+  border:2px solid #000000!important;
+  box-sizing:border-box!important;
+}
+
+/* Match the outer-edge thickness to the normal outer strip */
+.cell.edge-top.special,
+.cell.edge-top.risk,
+.cell.edge-top.special.share-owned,
+.cell.edge-top.risk.share-owned{
+  border-top-width:6px!important;
+}
+.cell.edge-right.special,
+.cell.edge-right.risk,
+.cell.edge-right.special.share-owned,
+.cell.edge-right.risk.share-owned{
+  border-right-width:6px!important;
+}
+.cell.edge-bottom.special,
+.cell.edge-bottom.risk,
+.cell.edge-bottom.special.share-owned,
+.cell.edge-bottom.risk.share-owned{
+  border-bottom-width:6px!important;
+}
+.cell.edge-left.special,
+.cell.edge-left.risk,
+.cell.edge-left.special.share-owned,
+.cell.edge-left.risk.share-owned{
+  border-left-width:6px!important;
+}
+
+
+/* ===== v43: corner cells now have two outer edges ===== */
+.cell.corner-tl,.cell.corner-tr,.cell.corner-br,.cell.corner-bl{
+  box-sizing:border-box!important;
+}
+
+
+/* ===== v46: round multiplier ===== */
+.multiplier-current{
+  display:block;
+  margin-top:5px;
+  font-size:clamp(15px,1.3vw,21px);
+  line-height:1;
+  font-weight:1000;
+  color:#ffffff;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+
+
+/* ===== v47: multiplier cell shows only 1x–6x ===== */
+.cell[data-kind="x2"] .special-icon{
+  font-size:clamp(52px,5.4vw,92px)!important;
+  font-weight:1000!important;
+  line-height:.9!important;
+  letter-spacing:-.06em!important;
+}
+.cell[data-kind="x2"] .multiplier-current{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  margin:0!important;
+  font-size:inherit!important; transform:scale(1.08)!important;
+  line-height:1!important;
+  font-weight:1000!important;
+  color:#ffffff!important;
+  text-transform:none!important;
+}
+
+
+/* ===== v49: truly huge multiplier label ===== */
+#cell-17 .special-icon,
+.cell[data-kind="x2"] .special-icon{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:100%!important;
+  padding:0!important;
+  margin:0!important;
+  font-size:clamp(72px,7vw,130px)!important;
+  font-weight:1000!important;
+  line-height:0.85!important;
+  letter-spacing:-0.08em!important;
+  text-align:center!important;
+}
+#cell-17 .multiplier-current,
+.cell[data-kind="x2"] .multiplier-current{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:inherit!important;
+  font-weight:1000!important;
+  line-height:0.85!important;
+  letter-spacing:-0.08em!important;
+  transform:none!important;
+}
+
+
+/* ===== v50: ultra large multiplier label ===== */
+.cell[data-kind="x2"]{
+  padding:0!important;
+}
+.cell[data-kind="x2"] .special-icon{
+  position:absolute!important;
+  inset:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:0!important;
+  line-height:1!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.35)!important;
+}
+.cell[data-kind="x2"] .multiplier-only{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:clamp(88px,8.5vw,170px)!important;
+  line-height:.8!important;
+  letter-spacing:-0.09em!important;
+  font-weight:1000!important;
+  color:#ffffff!important;
+}
+
+
+/* ===== v51: multiplier large but fitted ===== */
+.cell[data-kind="x2"]{
+  padding:0!important;
+  overflow:hidden!important;
+}
+.cell[data-kind="x2"] .special-icon{
+  position:absolute!important;
+  inset:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:0!important;
+}
+.cell[data-kind="x2"] .multiplier-only{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:clamp(34px,3.6vw,54px)!important;
+  line-height:1!important;
+  letter-spacing:-0.05em!important;
+  font-weight:1000!important;
+  color:#ffffff!important;
+  transform:none!important;
+  white-space:nowrap!important;
+}
+
+
+/* ===== v52: decimal multiplier 0.5x–6x ===== */
+.cell[data-kind="x2"] .multiplier-only{
+  font-size:clamp(28px,3vw,44px)!important;
+  letter-spacing:-0.055em!important;
+}
+
+
+/* ===== v54: clear 12-turn mortgage countdown ===== */
+.cell.mortgaged::after{
+  left:4px!important;
+  right:4px!important;
+  bottom:4px!important;
+  padding:4px 3px!important;
+  background:#090b10!important;
+  border:2px solid #f59e0b!important;
+  color:#fbbf24!important;
+  font-size:clamp(8px,.68vw,11px)!important;
+  line-height:1!important;
+  letter-spacing:0!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+  z-index:20!important;
+}
+
 </style>
 </head>
 <body>
@@ -837,14 +1355,14 @@ button{border:0;cursor:pointer}
         <div id="tokenLayer" class="token-layer"></div>
       </div>
     </section>
-    <section class="panel log-panel"><div class="panel-title">Ход игры <span>LIVE</span></div><div class="log"><div id="logList" class="log-list"></div><div class="info-box"><div class="economy"><div class="eco"><span>За круг</span><b id="passStartInfo">200 000</b></div><div class="eco"><span>Точно на Старт</span><b id="exactStartInfo">300 000</b></div><div class="eco"><span>Выход из тюрьмы</span><b id="bailInfo">75 000</b></div><div class="eco"><span>Казино</span><b>50% баланса</b></div><div class="eco"><span>Max уровень</span><b>5★</b></div><div class="eco"><span>Цеха</span><b>3–12% текущего баланса</b></div></div></div></div></section>
+    <section class="panel log-panel"><div class="panel-title">Ход игры <span>LIVE</span></div><div class="log"><div id="logList" class="log-list"></div><div class="info-box"><div class="economy"><div class="eco"><span>За круг</span><b id="passStartInfo">200 000</b></div><div class="eco"><span>Точно на Старт</span><b id="exactStartInfo">300 000</b></div><div class="eco"><span>Выход из тюрьмы</span><b id="bailInfo">150 000</b></div><div class="eco"><span>Казино</span><b>50% баланса</b></div><div class="eco"><span>Max уровень</span><b>5★</b></div><div class="eco"><span>Цеха</span><b>3–12% текущего баланса</b></div></div></div></div></section>
   </main>
 </div>
 <div id="toast" class="toast"></div>
 <div id="modalOverlay" class="overlay hidden"><div id="modalDialog" class="dialog"><div id="modalTitle" class="dialog-head"></div><div id="modalBody" class="dialog-body"></div><div id="modalActions" class="dialog-actions"></div></div></div>
 <div id="setupOverlay" class="overlay">
   <div class="setup-card">
-    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v32 INTERVENTION</span></div>
+    <div class="setup-title">BLACK CIRCUIT <span style="font-size:13px;color:#a78bfa;vertical-align:middle;margin-left:8px">v54 MORTGAGE 12</span></div>
     <div class="setup-sub"></div>
 
     <div class="mode-tabs">
@@ -863,12 +1381,20 @@ button{border:0;cursor:pointer}
     </div>
 
     <div id="onlineSetup" class="hidden">
-      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v32-INTERVENTION</div>
+      <div class="online-box"><div style="text-align:right;font-size:11px;color:#64748b;margin-bottom:6px">BUILD: v54-MORTGAGE12</div>
 
         <div class="online-profile">
           <input id="onlineNick" class="field" maxlength="18" value="Игрок" placeholder="Ваш никнейм">
           <select id="onlineIcon" class="field"></select>
-          <input id="onlineColor" class="field" type="color" value="#5eead4">
+          <div id="onlineColorPicker" class="online-color-picker">
+            <button id="onlineColorBtn" class="color-pick-btn" type="button">
+              <span id="onlineColorSwatch" class="color-pick-swatch" style="--pick:#5eead4"></span>
+              <span class="color-pick-label">Цвет</span>
+              <span class="color-pick-arrow">⌄</span>
+            </button>
+            <div id="onlineColorPalette" class="color-palette hidden"></div>
+            <input id="onlineColor" type="hidden" value="#5eead4">
+          </div>
         </div>
         <div class="room-actions">
           <button id="createRoomBtn" class="start-btn" style="margin-top:0">Создать комнату</button>
@@ -881,7 +1407,7 @@ button{border:0;cursor:pointer}
         <div id="roomCodeWrap" class="room-code-wrap hidden">
           <div style="font-size:12px;color:#8f9bb0">КОД КОМНАТЫ</div>
           <div id="roomCodeText" class="room-code">------</div>
-          <div class="room-hint">Передайте этот код друзьям. Друзья НЕ создают свою комнату — они нажимают «Войти в комнату» и вводят этот код. Максимум 4 игрока. Одинаковые цвета автоматически заменяются на свободные.</div>
+          <div class="room-hint">Передайте этот код друзьям. Друзья НЕ создают свою комнату — они нажимают «Войти в комнату» и вводят этот код. Максимум 4 игрока. Можно выбрать цвет из большой палитры. Если цвет уже занят, игра автоматически выдаст свободный.</div>
         </div>
         <div id="onlineStatus" class="online-status">Один игрок создаёт комнату. Все остальные только входят по его коду.</div>
         <div id="lobbyList" class="lobby-list"></div>
@@ -934,9 +1460,9 @@ const ECON = {
   bail: 150_000,
   rentMult: [1,2.2,4,7,12,20],
   upgradeMult: [.26,.36,.48,.62,.78],
-  monopolyRentMult: 1.8,
-  mortgageReturn: .35,
-  mortgageRedeem: .45,
+  monopolyRentMult: 2.0,
+  mortgageReturn: .50,
+  mortgageRedeem: .60,
   starSellReturn: .25,
   houseEdge: .10
 };
@@ -960,45 +1486,45 @@ const GROUPS = [
 */
 const RAW_MAP = [
   ['start','Старт'],
-  ['p','Северный квартал',0],
-  ['p','Неон-стрит',0],
-  ['p','Пульс-плаза',0],
-  ['m','Литейный цех'],
-  ['p','Фаундри-лейн',1],
-  ['p','Хром-хайтс',1],
-  ['p','Метро-хаб',1],
+  ['p','Puma',0],
+  ['p','Nike',0],
+  ['p','Adidas',0],
+  ['m','Coca-Cola'],
+  ['p','Samsung',1],
+  ['p','Sony',1],
+  ['p','Xiaomi',1],
   ['jail','Тюрьма'],
 
-  ['p','Гавань Ноль',2],
-  ['p','Аква-пойнт',2],
-  ['p','Руби-роу',2],
+  ['p','Netflix',2],
+  ['p','Spotify',2],
+  ['p','TikTok',2],
   ['bonus','Бонус'],
-  ['p','Кримсон-гейт',3],
-  ['m','Машиностроительный завод'],
-  ['p','Орбит-корт',3],
+  ['p','Amazon',3],
+  ['m','Pepsi'],
+  ['p','Lego',3],
   ['x2','2×'],
 
-  ['p','Велвет-блок',4],
-  ['m','Турбинный цех'],
-  ['p','Гилдед-майл',4],
+  ['p','Intel',4],
+  ['m','McDonalds'],
+  ['p','Nvidia',4],
   ['bonus','Бонус'],
-  ['p','Квантум-парк',5],
-  ['p','Нова-лабс',5],
-  ['p','Грид-пойнт',5],
-  ['cas','Атака'],
+  ['p','Asus',5],
+  ['p','Canon',5],
+  ['p','Lenovo',5],
+  ['cas','Вмешательство'],
 
-  ['m','Промышленный комбинат'],
-  ['p','Миднайт-роу',6],
-  ['p','Блэкстар-хаб',6],
+  ['m','Starbucks'],
+  ['p','Porsche',6],
+  ['p','Ferrari',6],
   ['bonus','Бонус'],
-  ['p','Зенит-стрит',7],
+  ['p','Tesla',7],
   ['risk','Казино'],
-  ['p','Эмпайр-гейт',7]
+  ['p','NASA',7]
 ];
 
 let ownableOrder = 0;
 const map = RAW_MAP.map((r,index) => {
-  const base = {index,type:r[0],name:r[1],owner:null,level:0,boosted:false,mortgaged:false,mortgageDueTurn:null,renameUsed:false,renamedBy:null};
+  const base = {index,type:r[0],name:r[1],owner:null,level:0,boosted:false,boostMultiplier:1,mortgaged:false,mortgageDueTurn:null,renameUsed:false,renamedBy:null};
   if (r[0] === 'p') {
     const group = r[2];
     const route = index / (RAW_MAP.length - 1);
@@ -1014,6 +1540,35 @@ const map = RAW_MAP.map((r,index) => {
 });
 
 let players = [], current = 0, round = 1, started = false, phase = 'setup', gameEnded = false;
+let currentMultiplier = 1;
+
+function formatMultiplier(value){
+  const n=Math.round((Number(value)||1)*10)/10;
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+function randomRoundMultiplier(exclude=null){
+  const old=Math.round(Number(exclude)*10)/10;
+  let value;
+  do{
+    // 26 значений: 0.5, 0.6, 0.7 ... 2.9, 3.0
+    value=(Math.floor(Math.random()*26)+5)/10;
+  }while(value===old);
+  return value;
+}
+function setRoundMultiplier(value,announce=false){
+  currentMultiplier=Math.round(Math.max(.5,Math.min(3,Number(value)||1))*10)/10;
+  const label=formatMultiplier(currentMultiplier);
+  const badge=document.querySelector('.multiplier-current');
+  if(badge)badge.textContent=`${label}x`;
+  if(announce){
+    addLog(`Новый круг: Мультиплеер изменился на ${label}x.`);
+    toast(`Мультиплеер теперь ${label}x`);
+  }
+  scheduleStateBroadcast();
+}
+function rotateRoundMultiplier(){
+  setRoundMultiplier(randomRoundMultiplier(currentMultiplier),true);
+}
 let networkMode='local'; // local | host | guest
 let roomCode='', localPlayerId=null;
 let lobbyProfiles=[];
@@ -1050,7 +1605,16 @@ let debtContext=null;
 let debtRequestSeq=1;
 
 const tokenIcons = ['◆','●','▲','■','⬢','✦'];
-const defaultColors = ['#5eead4','#f472b6','#60a5fa','#fbbf24'];
+const defaultColors = [
+  '#5eead4','#f472b6','#60a5fa','#fbbf24',
+  '#a78bfa','#34d399','#fb7185','#22d3ee',
+  '#f97316','#c084fc','#84cc16','#e879f9',
+  '#38bdf8','#facc15','#4ade80','#818cf8',
+  '#2dd4bf','#fb923c','#ef4444','#14b8a6',
+  '#8b5cf6','#06b6d4','#d946ef','#10b981',
+  '#f59e0b','#3b82f6','#ec4899','#7c3aed',
+  '#bef264','#f43f5e','#67e8f9','#fcd34d'
+];
 
 function cellGrid(index){
   if(index===0)return [1,1];
@@ -1097,7 +1661,7 @@ function mortgageTurnsLeft(prop,p){
 function setMortgage(prop,p){
   prop.mortgaged=true;
   prop.boosted=false;
-  prop.mortgageDueTurn=Number(p.turnsTaken||0)+5;
+  prop.mortgageDueTurn=Number(p.turnsTaken||0)+12;
 }
 function clearMortgage(prop){
   prop.mortgaged=false;
@@ -1108,6 +1672,7 @@ function releasePropertyToBank(prop,reason=''){
   prop.owner=null;
   prop.level=0;
   prop.boosted=false;
+  prop.boostMultiplier=1;
   prop.mortgaged=false;
   prop.mortgageDueTurn=null;
   if(reason)addLog(`${prop.name} возвращается банку${oldOwner!==null?` (${reason})`:''}.`);
@@ -1115,7 +1680,7 @@ function releasePropertyToBank(prop,reason=''){
 function processExpiredMortgages(p){
   const expired=ownedBy(p.id).filter(pr=>pr.mortgaged&&Number(pr.mortgageDueTurn||0)<Number(p.turnsTaken||0));
   expired.forEach(pr=>{
-    releasePropertyToBank(pr,'не выкуплено из залога за 5 ходов');
+    releasePropertyToBank(pr,'не выкуплено из залога за 12 ходов');
     toast(`${pr.name}: залог просрочен`);
   });
   if(expired.length){
@@ -1281,6 +1846,16 @@ function buildBoard(){
     const [r,col] = cellGrid(c.index);
     const el = document.createElement('div');
     el.className = 'cell';
+    let edgeClasses=[];
+    if(c.index===0) edgeClasses=['edge-top','edge-left','corner-tl'];
+    else if(c.index===8) edgeClasses=['edge-top','edge-right','corner-tr'];
+    else if(c.index===16) edgeClasses=['edge-bottom','edge-right','corner-br'];
+    else if(c.index===24) edgeClasses=['edge-bottom','edge-left','corner-bl'];
+    else if(c.index<8) edgeClasses=['edge-top'];
+    else if(c.index<16) edgeClasses=['edge-right'];
+    else if(c.index<24) edgeClasses=['edge-bottom'];
+    else edgeClasses=['edge-left'];
+    el.classList.add(...edgeClasses);
     el.id = 'cell-' + c.index;
     el.dataset.index = c.index;
     el.style.gridRow = r;
@@ -1311,7 +1886,7 @@ function buildBoard(){
       const labels = {
         start:['СТАРТ',''],
         jail:['ТЮРЬМА',''],
-        x2:['МУЛЬТИ<br>ПЛЕЕР',''],
+        x2:[`<span class="multiplier-current multiplier-only">${formatMultiplier(currentMultiplier)}x</span>`,''],
         cas:['ВМЕША<br>ТЕЛЬСТВО',''],
         risk:['КАЗИНО','']
       };
@@ -1332,7 +1907,16 @@ function renderBoardState(){
     const rentEl = el.querySelector('.cell-rent');
     el.classList.toggle('owned',c.owner!==null);
     el.classList.toggle('boosted',c.boosted);
+    if(c.boosted)el.dataset.boost=`${formatMultiplier(c.boostMultiplier||1)}x`;
+    else delete el.dataset.boost;
     el.classList.toggle('mortgaged',!!c.mortgaged);
+    if(c.mortgaged){
+      const mortgageOwner=players.find(x=>x.id===c.owner);
+      const left=mortgageTurnsLeft(c,mortgageOwner);
+      el.dataset.mortgageLeft=`ЗАЛОГ · ${left} ХОД.`;
+    }else{
+      delete el.dataset.mortgageLeft;
+    }
     el.classList.toggle('fullset',c.type==='p'&&c.owner!==null&&ownsFullGroup(c.owner,c.group));
 
     if(c.owner !== null){
@@ -1356,11 +1940,11 @@ function renderBoardState(){
         rentEl.textContent = '';
       }else if(c.mortgaged){
         const op=players.find(x=>x.id===c.owner);
-        rentEl.textContent = `Залог · ${mortgageTurnsLeft(c,op)} х.`;
+        rentEl.textContent = `До банка: ${mortgageTurnsLeft(c,op)} ход.`;
       }else if(c.type==='m'){
         rentEl.textContent = `${Math.round(industrialRate(c.owner)*100)}% текущего`;
       }else{
-        const shownRent = c.boosted ? calcRent(c)*2 : calcRent(c);
+        const shownRent = c.boosted ? calcRent(c)*Math.max(.5,Number(c.boostMultiplier||1)) : calcRent(c);
         rentEl.textContent = `Аренда ${compact(shownRent)}`;
       }
     }
@@ -1371,6 +1955,12 @@ function renderBoardState(){
       stars.textContent = '';
     }
   });
+  const multiplierEl=map.find(x=>x.type==='x2');
+  if(multiplierEl){
+    const badge=$('#cell-'+multiplierEl.index)?.querySelector('.multiplier-current');
+    if(badge)badge.textContent=`${formatMultiplier(currentMultiplier)}x`;
+  }
+
   ['jail','risk'].forEach(type=>{
     const c=map.find(x=>x.type===type);
     if(!c)return;
@@ -1409,7 +1999,8 @@ function renderPlayers(){
     const monopolies=completedMonopolies(p.id).length;
     const statuses=[];
 
-    if(ownedBy(p.id).some(c=>c.boosted)) statuses.push({t:'×2 Мультиплеер',c:'gold'});
+    const boostedProp=ownedBy(p.id).find(c=>c.boosted);
+    if(boostedProp) statuses.push({t:`${formatMultiplier(boostedProp.boostMultiplier||1)}x Мультиплеер`,c:'gold'});
     if(p.inJail) statuses.push({t:`Тюрьма ${p.jailFails}/2`,c:'danger'});
     if(p.skipTurns>0) statuses.push({t:`Пропуск: ${p.skipTurns}`,c:'danger'});
     if((p.rentShield||0)>0) statuses.push({t:'Страховка аренды',c:''});
@@ -2094,7 +2685,7 @@ async function bankruptPlayer(p,creditor){
 async function event2x(p){
   const props=ownedBy(p.id).filter(pr=>pr.type==='p'&&!pr.mortgaged);
   if(!props.length){
-    addLog(`${p.name} попал на Мультиплеер, но у него нет доступных территорий.`);
+    addLog(`${p.name} попал на Мультиплеер ${formatMultiplier(currentMultiplier)}x, но у него нет доступных территорий.`);
     return;
   }
 
@@ -2106,12 +2697,16 @@ async function event2x(p){
   }
 
   if(pick===null||pick===undefined)return;
-  ownedBy(p.id).forEach(pr=>pr.boosted=false);
+  ownedBy(p.id).forEach(pr=>{
+    pr.boosted=false;
+    pr.boostMultiplier=1;
+  });
   const pr=map[Number(pick)];
   if(pr&&pr.owner===p.id&&!pr.mortgaged){
     pr.boosted=true;
-    addLog(`${p.name} активирует Мультиплеер ×2 на ${pr.name}.`);
-    toast('Мультиплеер ×2 активирован');
+    pr.boostMultiplier=currentMultiplier;
+    addLog(`${p.name} активирует Мультиплеер ${formatMultiplier(currentMultiplier)}x на ${pr.name}.`);
+    toast(`Мультиплеер ${formatMultiplier(currentMultiplier)}x активирован`);
     renderBoardState();
     pulseCell(pr.index);
   }
@@ -2484,11 +3079,12 @@ async function resolveCell(p,fromBonus=false){
       return;
     }
     const boosted=c.type==='p'&&c.boosted;
-    if(boosted)rent*=2;
+    const boostMult=boosted?Math.max(1,Number(c.boostMultiplier||1)):1;
+    if(boosted)rent*=boostMult;
 
     let reason=c.type==='m'
-      ? `${Math.round(industrialRate(owner.id)*100)}% от максимального баланса за ${c.name}`
-      : (boosted?`удвоенная аренда 2× за ${c.name}`:`аренда за ${c.name}`);
+      ? `${Math.round(industrialRate(owner.id)*100)}% от текущего баланса за ${c.name}`
+      : (boosted?`аренда ${formatMultiplier(boostMult)}x за ${c.name}`:`аренда за ${c.name}`);
 
     if((owner.rentBoost||0)>0){
       rent=Math.round(rent*1.5/1000)*1000;
@@ -2508,8 +3104,9 @@ async function resolveCell(p,fromBonus=false){
 
     if(boosted){
       c.boosted=false;
+      c.boostMultiplier=1;
       renderBoardState();
-      addLog(`Эффект 2× на ${c.name} использован и исчез.`);
+      addLog(`Эффект ${formatMultiplier(boostMult)}x на ${c.name} использован и исчез.`);
     }
   }
 }
@@ -2591,7 +3188,10 @@ function finishTurn(extra){
   if(p)p.doubleStreak=0;
   const prev=current;
   current=nextActiveIndex(current);
-  if(current<=prev)round++;
+  if(current<=prev){
+    round++;
+    rotateRoundMultiplier();
+  }
   phase='awaitRoll';
   renderPlayers();
   setTimeout(()=>startTurn(false),500);
@@ -2639,17 +3239,56 @@ async function handleJailTurn(p){
 
   if(p.bot){
     await sleep(450);
+    // Бот обычно пытается выбить дубль; при желании можно оплатить сразу.
+    if(p.cash>=ECON.bail*5 && Math.random()<.20){
+      const paid=await chargePlayer(p,ECON.bail,null,'досрочный выход из тюрьмы');
+      if(paid)paySpecialShareIncome('jail',ECON.bail,p);
+      if(!paid||!p.active)return finishTurn(false);
+      p.inJail=false;
+      p.jailFails=0;
+      addLog(`${p.name} досрочно оплачивает выход из тюрьмы за ${money(ECON.bail)}.`);
+      renderPlayers();
+      phase='awaitRoll';
+      return rollTurn();
+    }
     phase='awaitRoll';
     return rollTurn({jailAttempt:true});
   }
 
-  const text = p.jailFails===0
-    ? `<p><b>${esc(p.name)}</b> находится в тюрьме.</p><p>У вас есть <b>2 попытки</b> выбить дубль. Первая неудача оставляет вас в тюрьме. После второй неудачи выход становится обязательным и стоит <b>${money(ECON.bail)}</b>.</p>`
-    : `<p><b>${esc(p.name)}</b> находится в тюрьме.</p><p>Это <b>вторая и последняя попытка</b> выбить дубль. Если дубля не будет, игра автоматически потребует оплатить <b>${money(ECON.bail)}</b>, после чего вы выйдете и пройдёте выпавшее количество клеток.</p>`;
+  const body = p.jailFails===0
+    ? `<p><b>${esc(p.name)}</b> находится в тюрьме.</p>
+       <p>Можно <b>сразу заплатить ${money(ECON.bail)}</b> и выйти, либо попробовать выбить дубль.</p>
+       <p>Всего даётся <b>2 попытки</b>. Если обе неудачные — после второй попытки платёж ${money(ECON.bail)} становится обязательным.</p>`
+    : `<p><b>${esc(p.name)}</b> находится в тюрьме.</p>
+       <p>Можно <b>заплатить ${money(ECON.bail)}</b> прямо сейчас и выйти либо сделать <b>вторую и последнюю попытку</b> выбить дубль.</p>
+       <p>Если дубля не будет — вы автоматически оплачиваете ${money(ECON.bail)} и выходите.</p>`;
 
-  await chooseModal('Тюрьма',text,[{label:'Бросить кубики',value:'roll',cls:'gold'}],false,p.id);
+  const choice=await chooseModal(
+    'Тюрьма',
+    body,
+    [
+      {label:`Крутить кубики (${attempt}/2)`,value:'roll',cls:'gold'},
+      {label:`Заплатить ${money(ECON.bail)} и выйти`,value:'pay',cls:'primary'}
+    ],
+    false,
+    p.id
+  );
+
+  if(choice==='pay'){
+    const paid=await chargePlayer(p,ECON.bail,null,'досрочный выход из тюрьмы');
+    if(paid)paySpecialShareIncome('jail',ECON.bail,p);
+    if(!paid||!p.active)return finishTurn(false);
+
+    p.inJail=false;
+    p.jailFails=0;
+    renderPlayers();
+    addLog(`${p.name} платит ${money(ECON.bail)} и досрочно выходит из тюрьмы.`);
+    phase='awaitRoll';
+    return rollTurn();
+  }
+
   phase='awaitRoll';
-  rollTurn({jailAttempt:true});
+  return rollTurn({jailAttempt:true});
 }
 
 async function startTurn(extra=false){
@@ -2867,11 +3506,11 @@ function renderBoardSelectionPanel(mode,playerId,targetId=null){
   if(mode==='multiplier'){
     panel.innerHTML=`
       <div class="interaction-head">
-        <b>Мультиплеер ×2</b><span class="spacer"></span>
+        <b>Мультиплеер ${formatMultiplier(currentMultiplier)}x</b><span class="spacer"></span>
       </div>
       <div class="trade-inline-help">
         Нажмите прямо на <b style="color:#67e8f9">свою подсвеченную клетку</b>.
-        Её аренда станет ×2 до первого попадания соперника.
+        Её аренда станет ${formatMultiplier(currentMultiplier)}x до первого попадания соперника.
       </div>`;
   }else{
     panel.innerHTML=`
@@ -3075,7 +3714,7 @@ function renderPropertyInline(pr){
     </div>
     <div style="font-size:11px;color:#98a4b7">
       ${esc(monopolyInfo)}
-      ${pr.boosted?' · <b style="color:#fde68a">Мультиплеер ×2 активен</b>':''}
+      ${pr.boosted?` · <b style="color:#fde68a">Мультиплеер ${formatMultiplier(pr.boostMultiplier||1)}x активен</b>`:''}
       ${pr.mortgaged?` · выкупить в течение ${mortgageTurnsLeft(pr,players.find(x=>x.id===pr.owner))} ход.`:''}
     </div>
     ${actions?`<div class="inline-actions">${actions}</div>`:''}
@@ -3394,7 +4033,7 @@ async function processInlineTradeOffer(p,targetId,giveProps,takeProps,giveCash,t
   });
   takeProps.forEach(i=>{
     map[i].owner=p.id;map[i].boosted=false;
-    if(map[i].mortgaged)map[i].mortgageDueTurn=Number(p.turnsTaken||0)+5;
+    if(map[i].mortgaged)map[i].mortgageDueTurn=Number(p.turnsTaken||0)+12;
   });
   addLog(`${p.name} и ${target.name} завершили сделку: ${giveProps.length+takeProps.length} территорий, ${money(giveCash)} ↔ ${money(takeCash)}.`);
   renderBoardState();
@@ -3705,7 +4344,7 @@ async function tradeProperties(){
   });
   takeProps.forEach(i=>{
     map[i].owner=p.id;map[i].boosted=false;
-    if(map[i].mortgaged)map[i].mortgageDueTurn=Number(p.turnsTaken||0)+5;
+    if(map[i].mortgaged)map[i].mortgageDueTurn=Number(p.turnsTaken||0)+12;
   });
   addLog(`${p.name} и ${target.name} завершили сделку: передано ${giveProps.length+takeProps.length} территорий, денежный обмен ${money(giveCash)} ↔ ${money(takeCash)}.`);
   renderBoardState();renderPlayers();repositionTokens(false);
@@ -3727,6 +4366,50 @@ async function showVictory(p,reason=''){
   if(ch==='new')location.reload();
 }
 
+
+function buildOnlineColorPalette(){
+  const palette=$('#onlineColorPalette');
+  const input=$('#onlineColor');
+  const swatch=$('#onlineColorSwatch');
+  const button=$('#onlineColorBtn');
+  if(!palette||!input||!swatch||!button)return;
+
+  const render=()=>{
+    const current=String(input.value||defaultColors[0]).toLowerCase();
+    palette.innerHTML=defaultColors.map((color,i)=>`
+      <button
+        type="button"
+        class="color-option ${String(color).toLowerCase()===current?'selected':''}"
+        data-color="${color}"
+        style="--c:${color}"
+        title="Цвет ${i+1}"
+        aria-label="Выбрать цвет ${i+1}">
+      </button>`).join('');
+    swatch.style.setProperty('--pick',input.value||defaultColors[0]);
+  };
+
+  button.addEventListener('click',e=>{
+    e.stopPropagation();
+    palette.classList.toggle('hidden');
+    render();
+  });
+
+  palette.addEventListener('click',e=>{
+    const option=e.target.closest('[data-color]');
+    if(!option)return;
+    e.stopPropagation();
+    input.value=option.dataset.color;
+    swatch.style.setProperty('--pick',option.dataset.color);
+    palette.classList.add('hidden');
+    render();
+  });
+
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('#onlineColorPicker'))palette.classList.add('hidden');
+  });
+
+  render();
+}
 
 function profileFromOnlineInputs(){
   return {
@@ -3962,12 +4645,12 @@ function serializeGameState(){
   return {
     players:players.map(p=>({...p})),
     map:map.map(c=>({
-      index:c.index,name:c.name,owner:c.owner,level:c.level,boosted:c.boosted,
+      index:c.index,name:c.name,owner:c.owner,level:c.level,boosted:c.boosted,boostMultiplier:Number(c.boostMultiplier||1),
       mortgaged:!!c.mortgaged,mortgageDueTurn:c.mortgageDueTurn??null,
       renameUsed:!!c.renameUsed,renamedBy:c.renamedBy??null
     })),
     specialShares:JSON.parse(JSON.stringify(specialShares)),
-    current,round,started,phase,gameEnded,
+    current,round,currentMultiplier,started,phase,gameEnded,
     turnTimeLeft,
     status:$('#turnStatus')?.textContent||'',
     logs:[...document.querySelectorAll('#logList .log-item')].slice(-80).map(x=>x.textContent),
@@ -3990,7 +4673,7 @@ function applyGameState(state){
   (state.map||[]).forEach(s=>{
     const c=map[s.index];
     if(c)Object.assign(c,{
-      name:s.name,owner:s.owner,level:s.level,boosted:s.boosted,
+      name:s.name,owner:s.owner,level:s.level,boosted:s.boosted,boostMultiplier:Math.round(Math.max(.5,Math.min(3,Number(s.boostMultiplier)||1))*10)/10,
       mortgaged:!!s.mortgaged,mortgageDueTurn:s.mortgageDueTurn??null,
       renameUsed:!!s.renameUsed,renamedBy:s.renamedBy??null
     });
@@ -3999,6 +4682,7 @@ function applyGameState(state){
 
   current=state.current??0;
   round=state.round??1;
+  currentMultiplier=Math.round(Math.max(.5,Math.min(3,Number(state.currentMultiplier)||1))*10)/10;
   started=!!state.started;
   phase=state.phase||'awaitRoll';
   gameEnded=!!state.gameEnded;
@@ -4418,7 +5102,7 @@ async function joinRoom(){
         players.some(p=>p.peerId===netSelfId);
       if(joined)return;
       setOnlineStatus(
-        'Комната есть в базе, но хост не подтвердил вход. Убедитесь, что вкладка хоста открыта и у обоих версия v32 INTERVENTION.',
+        'Комната есть в базе, но хост не подтвердил вход. Убедитесь, что вкладка хоста открыта и у обоих версия v54 MORTGAGE 12.',
         'err'
       );
       $('#joinRoomBtn').disabled=false;
@@ -4470,11 +5154,12 @@ function startOnlineGame(){
   current=0;
   round=1;
   gameEnded=false;
+  setRoundMultiplier(randomRoundMultiplier(),false);
 
   createTokens();
   renderBoardState();
   renderPlayers();
-  addLog(`Онлайн-матч начался. Комната ${roomCode}. Стартовый капитал: ${money(ECON.startCash)}.`);
+  addLog(`Онлайн-матч начался. Комната ${roomCode}. Стартовый капитал: ${money(ECON.startCash)}. Мультиплеер первого круга: ${formatMultiplier(currentMultiplier)}x.`);
 
   const initialState=serializeGameState();
   broadcastNet({type:'game_start',state:initialState});
@@ -4575,8 +5260,9 @@ function startGame(){
 
   $('#setupOverlay').classList.add('hidden');
   started=true;phase='awaitRoll';current=0;round=1;
+  setRoundMultiplier(randomRoundMultiplier(),false);
   createTokens();renderBoardState();renderPlayers();
-  addLog(`Матч начался. Стартовый капитал каждого игрока: ${money(ECON.startCash)}. За полный круг: ${money(ECON.passStart)}.`);
+  addLog(`Матч начался. Стартовый капитал каждого игрока: ${money(ECON.startCash)}. За полный круг: ${money(ECON.passStart)}. Мультиплеер первого круга: ${formatMultiplier(currentMultiplier)}x.`);
   startTurn();
 }
 
@@ -4589,7 +5275,7 @@ async function showEconomyTable(){
         <td>${money(pr.price)}</td>
         <td>1 цех — 3% текущего баланса<br>2 — 6%<br>3 — 9%<br>4 — 12%<span class="tariff-small">процент считается от текущего баланса игрока, который наступил</span></td>
         <td>Не улучшается · Мультиплеер запрещён</td>
-        <td>${money(mortgageValue(pr))}<span class="tariff-small">выкуп ${money(redeemCost(pr))} · срок 5 ходов</span></td>
+        <td>${money(mortgageValue(pr))}<span class="tariff-small">выкуп ${money(redeemCost(pr))} · срок 12 ходов</span></td>
       </tr>`;
     }
     const normal0=rentAtLevel(pr,0,false);
@@ -4607,7 +5293,7 @@ async function showEconomyTable(){
 
   await showLocalModal(
     'Цены, аренда и улучшения',
-    `<p>При сборе всей цветовой монополии базовая аренда каждой её клетки автоматически увеличивается примерно в <b>1,67 раза</b>: например, аренда 9 000 ₴ становится 15 000 ₴. Затем к этой повышенной базе применяются звёзды.</p>
+    `<p>При сборе всей цветовой монополии базовая аренда каждой её клетки становится ровно <b>в 2 раза выше</b>: например, 10 000 ₴ превращаются в 20 000 ₴. Все улучшения 1–5★ затем считаются уже от этой удвоенной базы монополии.</p>
      <p>Заложенная клетка приносит <b>0 ₴ аренды</b>.</p>
      <div class="tariff-wrap"><table class="tariff-table">
        <thead><tr><th>Поле</th><th>Покупка</th><th>Аренда</th><th>Стоимость улучшений</th><th>Залог</th></tr></thead>
@@ -4623,7 +5309,7 @@ async function showRules(){
   await showLocalModal('Краткие правила',`
     <p><b>Экономика:</b> стартовый баланс — ${money(ECON.startCash)}. За пересечение Старта игрок получает ${money(ECON.passStart)}, а за <b>точное попадание на Старт</b> — ${money(ECON.exactStart)}.</p>
     <p><b>Обычные территории:</b> покупаются с уровнем 0★. Улучшение доступно только после сбора всей монополии. Застройка идёт <b>равномерно</b>: нельзя поставить 2★, пока каждая клетка этой монополии не имеет хотя бы 1★; нельзя поставить 3★, пока каждая не имеет хотя бы 2★, и так далее до 5★. Перед каждым броском разрешено одно улучшение; дубль обновляет этот лимит.</p>
-    <p><b>Аренда:</b> на свободной клетке показывается только цена. После покупки показывается аренда. Полная монополия повышает базовую аренду примерно в 1,8 раза. Улучшения усилены: 1★ ×2,2; 2★ ×4; 3★ ×7; 4★ ×12; 5★ ×20 от базы полной монополии. Ранние группы дополнительно дешевле улучшать.</p>
+    <p><b>Аренда:</b> на свободной клетке показывается только цена. После покупки показывается аренда. Полная монополия удваивает базовую аренду: 10 000 ₴ → 20 000 ₴. Улучшения: 1★ ×2,2; 2★ ×4; 3★ ×7; 4★ ×12; 5★ ×20 считаются уже от удвоенной базы полной монополии. Ранние группы дополнительно дешевле улучшать.</p>
     <p><b>Красные поля:</b> это цеха и заводы. Они не улучшаются и не получают Мультиплеер. Если у владельца 1 красная клетка, соперник платит 3% от своего текущего баланса; 2 клетки — 6%, 3 — 9%, 4 — 12%.</p>
     <p><b>Кредит:</b> во время своего хода можно взять от <b>100 000 до 500 000 ₴</b> на срок от <b>2 до 10 своих ходов</b>. Чем дольше срок, тем выше процент. Второй кредит нельзя взять до погашения первого. Когда срок наступает, долг обязателен к оплате; если денег не хватает, можно снять звёзды и заложить имущество. Если после этого долг всё равно не погашен — игрок немедленно проигрывает.</p>
     <p><b>Управление клетками:</b> нажмите прямо на любую клетку поля, чтобы увидеть её аренду, уровень, залог и владельца. На своей клетке там же доступны улучшение, снятие звезды, залог, выкуп и переименование — без отдельного окна.</p><p><b>Торговля:</b> нажмите «Торговля», выберите игрока в панели и затем просто нажимайте по клеткам на поле. Ваши выбранные клетки подсвечиваются синим, клетки соперника — жёлтым. Деньги можно добавить в той же панели.</p>
@@ -4631,14 +5317,14 @@ async function showRules(){
     <p><b>Таймер хода:</b> у каждого игрока есть <b>50 секунд</b> на ход. Таймер продолжается во время выбора покупки, казино, вмешательства, оплаты и других решений. Если время заканчивается, игра автоматически выполняет безопасное/обязательное действие и не позволяет задерживать партию бесконечно.</p>
     <p><b>Онлайн:</b> хост создаёт комнату и передаёт друзьям шестизначный код. В v29 комнаты хранятся в базе Supabase, а синхронизация идёт через Supabase Realtime. Прямое соединение между игроками не требуется. Вкладка хоста должна оставаться открытой.</p>
     <p><b>Дубли:</b> первый и второй подряд дают дополнительный бросок. Третий подряд немедленно отправляет в тюрьму.</p>
-    <p><b>Тюрьма:</b> игрок имеет две попытки выбить дубль. После первой неудачи остаётся в тюрьме. После второй неудачи обязан заплатить ${money(ECON.bail)}, затем выходит и движется по результату второй попытки.</p>
-    <p><b>2×:</b> временно удваивает доход выбранной вашей территории до первого попадания соперника.</p>
+    <p><b>Тюрьма:</b> в любой из двух тюремных ходов можно сразу заплатить ${money(ECON.bail)} и выйти либо попытаться выбить дубль. После второй неудачной попытки платёж ${money(ECON.bail)} обязателен.</p>
+    <p><b>Мультиплеер:</b> в начале партии и после каждого полного круга всех игроков случайно получает значение от 0.5x до 3x с шагом 0.1 — например 0.8x, 1.7x или 2.9x. Попавший на клетку выбирает свою обычную территорию, и её аренда умножается на текущее значение до первого попадания соперника.</p>
     <p><b>Атака:</b> случайно выбирает соперника, после чего вы снижаете одну его обычную территорию на 1★. Территория с 0★ или красный промышленный объект возвращается банку.</p>
     <p><b>Казино:</b> обязательная ставка 50% текущих денег. После выбора риска показывается колесо из зелёных и красных секторов: зелёный — победа, красный — поражение, а белая стрелка показывает итоговый сектор.</p>
     <p><b>Синие бонусные клетки:</b> событие показывается сразу, без рулетки. Если выпали «Кубики назад», игрок отдельно бросает два кубика и один раз идёт назад на выпавшую сумму; после этого обычное направление снова вперёд.</p>
     <ul style="padding-left:20px">${bonusList}</ul>
     <p><b>Оплаты:</b> перед каждой обязательной оплатой человеку показывается отдельное окно: причина платежа, сумма, получатель и текущий баланс.</p>
-    <p><b>Залог и нехватка денег:</b> при нехватке денег отдельное окно больше не открывается — ваши клетки подсвечиваются прямо на поле. Нажимайте на них и снимайте звёзды или закладывайте. Залог даёт ${Math.round(ECON.mortgageReturn*100)}% цены, выкуп стоит ${Math.round(ECON.mortgageRedeem*100)}%. Если заложенное поле не выкуплено за 5 ваших ходов, оно автоматически возвращается банку.</p>
+    <p><b>Залог и нехватка денег:</b> при нехватке денег отдельное окно больше не открывается — ваши клетки подсвечиваются прямо на поле. Нажимайте на них и снимайте звёзды или закладывайте. Залог даёт ${Math.round(ECON.mortgageReturn*100)}% цены, выкуп стоит ${Math.round(ECON.mortgageRedeem*100)}%. Если заложенное поле не выкуплено за 12 ваших ходов, оно автоматически возвращается банку.</p>
     <p><b>Доли Тюрьмы и Казино:</b> после получения хотя бы одной полной монополии можно нажать на Тюрьму или Казино и купить от 10% до 100% обязательных платежей этой клетки. Другой игрок может перебить долю более высокой ценой, после чего предыдущий владелец теряет её без возврата. Каждые 2 собственных круга владелец оплачивает продление в размере 20% последней цены доли.</p>
     <p><b>Победа:</b> специальных мгновенных условий больше нет. Матч заканчивается, когда в игре остаётся один активный игрок.</p>
     <p><b>Банкротство:</b> если после снятия звёзд и залога имущества всё равно невозможно оплатить обязательный долг, игрок выбывает. Владения банкрота возвращаются банку.</p>
@@ -4647,6 +5333,7 @@ async function showRules(){
 
 buildBoard();
 buildSetup();
+buildOnlineColorPalette();
 $('#passStartInfo').textContent=fmt(ECON.passStart);
 $('#exactStartInfo').textContent=fmt(ECON.exactStart);
 $('#bailInfo').textContent=fmt(ECON.bail);
